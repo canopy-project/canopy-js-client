@@ -1,3 +1,260 @@
+function SDDLClass(initObj) {
+
+    this.name = function() {
+        return initObj.name;
+    }
+
+    this.asObject = function() {
+        /* TODO: deep copy? */
+        return initObj;
+    }
+
+    this.authors = function() {
+        /* TODO: copy? */
+        return initObj.authors;
+    }
+
+    this.description = function() {
+        return initObj.description;
+    }
+
+    this.properties = function() {
+    }
+
+    this.sensorProperties = function() {
+    }
+
+    this.controlProperties = function() {
+    }
+}
+
+function SDDLSensorProperty(initObj) {
+
+    /* 
+     * .name()
+     *
+     *  Obtain name of this property.
+     */
+    this.name = function() {
+        return initObj.name;
+    }
+
+    /* 
+     * .datatype()
+     *
+     *  Obtain datatype of this property.
+     *  Return value will be one of:
+     *      "void",
+     *      "string",
+     *      "bool",
+     *      "int8",
+     *      "uint8",
+     *      "int16",
+     *      "uint16",
+     *      "int32",
+     *      "uint32",
+     *      "float32",
+     *      "float64",
+     *      "datetime",
+     */
+    this.datatype = function() {
+        return initObj.datatype;
+    }
+
+    /* 
+     * .minValue()
+     *
+     *  Obtain minimum value of this property, if any, otherwise undefined.
+     */
+    this.minValue = function() {
+        return initObj.minValue;
+    }
+
+    /* 
+     * .maxValue()
+     *
+     *  Obtain minimum value of this property, if any, otherwise undefined.
+     */
+    this.maxValue = function() {
+        return initObj.maxValue;
+    }
+
+    /* 
+     * .numericDisplayHint()
+     *
+     *  Obtain numeric display hint.  Return value will be one of:
+     *      "normal",
+     *      "percentage",
+     *      "scientific",
+     *      "hex"
+     */
+    this.numericDisplayHint = function() {
+        return initObj.numericDisplayHint;
+    }
+
+    /* 
+     * .regex()
+     *
+     *  Obtain regular expression criteria, if any, otherwise null.
+     */
+    this.regex = function() {
+        return initObj.regex;
+    }
+
+    /* 
+     * .units()
+     *
+     *  Obtain units string.
+     */
+    this.units = function() {
+        return initObj.units;
+    }
+}
+
+function SDDLControlProperty(initObj) {
+
+    /* 
+     * .name()
+     *
+     *  Obtain name of this property.
+     */
+    this.name = function() {
+        return initObj.name;
+    }
+
+    /* 
+     * .controlType()
+     *
+     *  Obtain control type of this property.
+     *  Return value will be one of:
+     *      "parameter",
+     *      "trigger",
+     */
+    this.name = function() {
+        return initObj.controlType;
+    }
+
+    /* 
+     * .datatype()
+     *
+     *  Obtain datatype of this property.
+     *  Return value will be one of:
+     *      "void",
+     *      "string",
+     *      "bool",
+     *      "int8",
+     *      "uint8",
+     *      "int16",
+     *      "uint16",
+     *      "int32",
+     *      "uint32",
+     *      "float32",
+     *      "float64",
+     *      "datetime",
+     */
+    this.datatype = function() {
+        return initObj.datatype;
+    }
+
+    /* 
+     * .minValue()
+     *
+     *  Obtain minimum value of this property, if any, otherwise undefined.
+     */
+    this.minValue = function() {
+        return initObj.minValue;
+    }
+
+    /* 
+     * .maxValue()
+     *
+     *  Obtain minimum value of this property, if any, otherwise undefined.
+     */
+    this.maxValue = function() {
+        return initObj.maxValue;
+    }
+
+    /* 
+     * .numericDisplayHint()
+     *
+     *  Obtain numeric display hint.  Return value will be one of:
+     *      "normal",
+     *      "percentage",
+     *      "scientific",
+     *      "hex"
+     */
+    this.numericDisplayHint = function() {
+        return initObj.numericDisplayHint;
+    }
+
+    /* 
+     * .regex()
+     *
+     *  Obtain regular expression criteria, if any, otherwise null.
+     */
+    this.regex = function() {
+        return initObj.regex;
+    }
+
+    /* 
+     * .units()
+     *
+     *  Obtain units string.
+     */
+    this.units = function() {
+        return initObj.units;
+    }
+}
+
+function CanopyAccount() {
+    this.username = function() {
+        return initObj.username;
+    }
+
+    this.email = function() {
+        return initObj.email;
+    }
+}
+
+/*device.beginControlTransaction()
+    .setControlValue("speed", 4)
+    .commit();
+    .onSuccess(function() {
+    })
+    .onFailure(function() {
+    })
+*/
+
+function CanopyDevice(initObj) {
+    this.id = function() {
+        return initObj.id;
+    }
+
+    this.friendlyName() {
+        return initObj.friendly_name;
+    }
+
+    this.sddlClass() {
+        return new SDDLClass(initObj.sddl_class);
+    }
+
+    this.beginControlTransaction() {
+    }
+
+    this.fetchHistoricData() {
+    }
+
+    /* Lists accounts who have permission to access this */
+    this.permissions() {
+    }
+
+    this.share = function(params) {
+    }
+
+    this.setPermissions = function(params) {
+    }
+}
+
 function CanopyClient() {
     this.getLoggedInUsername = function(onSuccess, onError) {
         $.ajax({
