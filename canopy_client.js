@@ -230,22 +230,22 @@ function CanopyDevice(initObj) {
         return initObj.id;
     }
 
-    this.friendlyName() {
+    this.friendlyName = function() {
         return initObj.friendly_name;
     }
 
-    this.sddlClass() {
+    this.sddlClass = function() {
         return new SDDLClass(initObj.sddl_class);
     }
 
-    this.beginControlTransaction() {
+    this.beginControlTransaction = function() {
     }
 
-    this.fetchHistoricData() {
+    this.fetchHistoricData = function() {
     }
 
     /* Lists accounts who have permission to access this */
-    this.permissions() {
+    this.permissions = function() {
     }
 
     this.share = function(params) {
@@ -255,12 +255,27 @@ function CanopyDevice(initObj) {
     }
 }
 
-function CanopyClient() {
+function CanopyClient(settings) {
+    var params = $.extend({}, {
+        cloudHost : "canopy.link",
+        cloudHTTPPort : 80,
+        cloudHTTPSPort : 433,
+        cloudUseHTTPS : false
+    }, settings);
+
+    var self = this;
+
+    this.apiBaseUrl = function() {
+        return (params.cloudUseHTTPS ? "https://" : "http://") +
+            params.cloudHost + ":" +
+            (params.cloudUseHTTPS ? params.cloudHTTPSPort : params.cloudHTTPPort)
+    }
+
     this.getLoggedInUsername = function(onSuccess, onError) {
         $.ajax({
             type: "GET",
             dataType : "json",
-            url: "http://canopy.link:8080/me",
+            url: self.apiBaseUrl() + "/me",
             xhrFields: {
                  withCredentials: true
             },
@@ -281,7 +296,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/login",
+            url: self.apiBaseUrl() + "/login",
             data: JSON.stringify({username : username, password : password}),
             xhrFields: {
                  withCredentials: true
@@ -305,7 +320,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/logout",
+            url: self.apiBaseUrl() + "/logout",
             xhrFields: {
                  withCredentials: true
             },
@@ -325,7 +340,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/create_account",
+            url: self.apiBaseUrl() + "/create_account",
             data: JSON.stringify({username : username, email: email, password : password, password_confirm: password_confirm}),
             xhrFields: {
                  withCredentials: true
@@ -346,7 +361,7 @@ function CanopyClient() {
         $.ajax({
             type: "GET",
             dataType : "json",
-            url: "http://canopy.link:8080/devices",
+            url: self.apiBaseUrl() + "/devices",
             xhrFields: {
                  withCredentials: true
             },
@@ -366,7 +381,7 @@ function CanopyClient() {
         $.ajax({
             type: "GET",
             dataType: "json",
-            url: "http://canopy.link:8080/device/" + deviceId + "/" + sensorName,
+            url: self.apiBaseUrl() + "/device" + deviceId + "/" + sensorName,
             xhrFields: {
                  withCredentials: true
             },
@@ -388,7 +403,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/device/" + deviceId,
+            url: self.apiBaseUrl() + "/device" + deviceId,
             data: JSON.stringify(obj),
             xhrFields: {
                  withCredentials: true
@@ -407,7 +422,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/share",
+            url: self.apiBaseUrl() + "/share",
             data: JSON.stringify( {
                 device_id : deviceId, 
                 email: recipientEmail,
@@ -430,7 +445,7 @@ function CanopyClient() {
         $.ajax({
             type: "POST",
             dataType : "json",
-            url: "http://canopy.link:8080/finish_share_transaction",
+            url: self.apiBaseUrl() + "/finish_share_transaction",
             data: JSON.stringify( {
                 device_id : deviceId
             }),
@@ -524,61 +539,4 @@ function CanopyUtil_GetDeviceSensors(deviceObj) {
         }
     }
     return out;
-}
-
-function CanopyUtil_GetURLParams() {
-    var params = [];
-    var query = location.search.slice(1).split('&');
-    $.each(query, function(i, value) {
-        var token = value.split('=');
-        params[decodeURIComponent(token[0])] = decodeURIComponent(token[1]);
-    });
-    return params;
-}
-
-function CanopyUtil_Compose(segments) {
-    var i;
-    var numSegments = segments.length;
-    var out = [];
-    var $out;
-    var placeholderCnt = 0;
-    for (i = 0; i < numSegments; i++) {
-        if (typeof segments[i] === "string") {
-            /* regular string, just append to output */
-            out.push(segments[i]);
-        }
-        else if (typeof segments[i] === "object") {
-            if (segments[i] instanceof CanoNode) {
-                /* canopy node object.  Create placeholder */
-                var placeholderId = "_tmpid_" + placeholderCnt;
-                out.push("<div id=" + placeholderId + "/>");
-                placeholders.push({
-                    id: placeholderId,
-                    $segment: segments[i].get$()
-                });
-                placeholderCnt++;
-            }
-            else if (segments[i] instanceof jQuery) {
-                /* jquery object.  Create placeholder */
-                var placeholderId = "_tmpid_" + placeholderCnt;
-                out.push("<div id=" + placeholderId + "/>");
-                placeholders.push({
-                    id: placeholderId,
-                    $segment: segments[i]
-                });
-                placeholderCnt++;
-            }
-        }
-    }
-
-    $out = $(out.join(""));
-
-    /* replace placeholders with actual content */
-    for (i = 0; i < placeholderCnt; i++) {
-        var id = placeholders[i].id;
-        var $segment = placeholders[i].$segment;
-        $out.find("#" + id).replaceWith($segment);
-    }
-
-    return $out;
 }
