@@ -1,12 +1,26 @@
+
+function CanopyPropertyList() {
+}
+
+CanopyPropertyList.prototype.length = function()
+{
+    return this.numItems;
+}
+
+CanopyPropertyList.prototype.keys = function()
+{
+    /* TODO */
+}
+
+CanopyPropertyList.prototype.keys = function()
+{
+    /* TODO */
+}
+
 function SDDLClass(initObj) {
 
     this.name = function() {
         return initObj.name;
-    }
-
-    this.asObject = function() {
-        /* TODO: deep copy? */
-        return initObj;
     }
 
     this.authors = function() {
@@ -225,6 +239,18 @@ function CanopyAccount() {
     })
 */
 
+/*
+var trans = device.beginControlTransaction()
+    .setTargetValue(device.controls.darkness, 2)
+    .commit({
+        onSuccess: {
+            alert("success!");
+        }
+        onFailed: {
+            alert("oops! something went wrong!");
+        }
+    });
+*/
 function CanopyDevice(initObj) {
     this.id = function() {
         return initObj.id;
