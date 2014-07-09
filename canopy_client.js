@@ -1,78 +1,167 @@
-function CanopyProperty()
+function CanopyPropertyBase()
 {
     this.isBasicClass = function() {
-        return propertyType == "class" && compositeType == "basic";
+        return this.propertyType() == "class" && this.compositeType() == "single";
     }
 
     this.isBasicControl = function() {
-        return propertyType == "control" && compositeType == "basic";
+        return this.propertyType() == "control" && this.compositeType() == "single";
     }
 
     this.isBasicSensor = function() {
-        return propertyType == "sensor" && compositeType == "basic";
+        return this.propertyType() == "sensor" && this.compositeType() == "single";
     }
 
     this.isClassArray = function() {
-        return propertyType == "class" && compositeType == "fixed-array";
+        return this.propertyType() == "class" && this.compositeType() == "fixed-array";
     }
 
     this.isControlArray = function() {
-        return propertyType == "control" && compositeType == "fixed-array";
+        return this.propertyType() == "control" && this.compositeType() == "fixed-array";
     }
 
     this.isSensorArray = function() {
-        return propertyType == "sensor" && compositeType == "fixed-array";
+        return this.propertyType() == "sensor" && this.compositeType() == "fixed-array";
     }
 
     this.isClassMap = function() {
-        return propertyType == "class" && compositeType == "map";
+        return this.propertyType() == "class" && this.compositeType() == "map";
     }
 
     this.isControlMap = function() {
-        return propertyType == "control" && compositeType == "map";
+        return this.propertyType() == "control" && this.compositeType() == "map";
     }
 
     this.isSensorMap = function() {
-        return propertyType == "sensor" && compositeType == "map";
+        return this.propertyType() == "sensor" && this.compositeType() == "map";
     }
 }
 
-function CanopyDevice()
-{
-    this.childClass = this.sddlClass.childClass;
-    this.control = this.sddlClass.control;
-    this.sensor = this.sddlClass.sensor;
-    this.property = this.sddlClass.property;
+/*
+ * <name> is string
+ * <decl> is object
+ */
+function CanopyClass(propName, decl) {
+    var self=this,
+        _authors = decl.authors, /* TODO: deep copy? */
+        _description = decl.description,
+        _properties = [],
+    ;
+    
+    $.extend(this, new CanopyPropertyBase());
 
-    this.childClasses = this.sddlClass.childClasses;
-    this.control = this.sddlClass.control;
-    this.sensor = this.sddlClass.sensor;
-    this.property = this.sddlClass.property;
-}
+    for (var prop in decl) {
+        if (decl.hasOwnProperty(prop)) {
+            var info = _DeclInfo(decl);
+            var newProperty = null;
+            if (info.propertyType == "control") {
+                newProperty = CanopyControl(info.name, info.propertyType);
+            }
+            else if (info.propertyType == "sensor") {
+                newProperty = CanopySensor(info.name, info.propertyType);
+            }
+            else if (info.propertyType == "class") {
+                newProperty = CanopyClass(info.name, info.propertyType);
+            }
 
-function SDDLClass(initObj) {
-
-    this.name = function() {
-        return initObj.name;
+            if (newProperty != null) {
+                _properties.push(newProperty);
+            }
+        }
     }
 
     this.authors = function() {
-        /* TODO: copy? */
-        return initObj.authors;
+        return _authors;
+    }
+
+    this.childClass = function(name) {
+        return this.childClasses()[name];
+    }
+
+    this.childClasses = function() {
+        var out = {};
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isClass()) {
+                out[_properties[i].name()] = _properties[i];
+            }
+        }
+        return out;
+    }
+
+    this.childClassList = function() {
+        var out = [];
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isClass()) {
+                out.push(_properties[i]);
+            }
+        }
+        return out;
+    }
+
+    this.control = function(name) {
+        return this.controls()[name];
+    }
+
+    this.controls = function() {
+        var out = {};
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isControl()) {
+                out[_properties[i].name()] = _properties[i];
+            }
+        }
+        return out;
+    }
+
+    this.controlList = function() {
+        var out = [];
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isControl()) {
+                out.push(_properties[i]);
+            }
+        }
+        return out;
+    }
+
+    this.compositeType = function() {
+        return "single";
     }
 
     this.description = function() {
-        return initObj.description;
+        return _description;
     }
 
-    this.properties = function() {
+    this.name = function() {
+        return propName;
     }
 
-    this.sensorProperties = function() {
+    this.propertyType = function() {
+        return "class";
     }
 
-    this.controlProperties = function() {
+    this.sensor = function(name) {
+        return this.sensors()[name];
     }
+
+    this.sensors = function() {
+        var out = {};
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isSensor()) {
+                out[_properties[i].name()] = _properties[i];
+            }
+        }
+        return out;
+    }
+
+    this.sensorList = function() {
+        var out = [];
+        for (var i = 0; i < _properties.length; i++) {
+            if (_properties[i].isSensor()) {
+                out.push(_properties[i]);
+            }
+        }
+        return out;
+    }
+
 }
 
 function SDDLSensorProperty(initObj) {
@@ -251,16 +340,7 @@ function SDDLControlProperty(initObj) {
     this.units = function() {
         return initObj.units;
     }
-}
 
-function CanopyAccount() {
-    this.username = function() {
-        return initObj.username;
-    }
-
-    this.email = function() {
-        return initObj.email;
-    }
 }
 
 /*device.beginControlTransaction()
@@ -284,53 +364,23 @@ var trans = device.beginControlTransaction()
         }
     });
 */
-function CanopyDevice(initObj) {
-    this.id = function() {
-        return initObj.id;
-    }
-
-    this.friendlyName = function() {
-        return initObj.friendly_name;
-    }
-
-    this.sddlClass = function() {
-        return new SDDLClass(initObj.sddl_class);
-    }
-
-    this.beginControlTransaction = function() {
-    }
-
-    this.fetchHistoricData = function() {
-    }
-
-    /* Lists accounts who have permission to access this */
-    this.permissions = function() {
-    }
-
-    this.share = function(params) {
-    }
-
-    this.setPermissions = function(params) {
-    }
-}
-
-function CanopyClient(settings) {
-    var params = $.extend({}, {
+function CanopyClient(origSettings) {
+    var settings = $.extend({}, {
         cloudHost : "canopy.link",
         cloudHTTPPort : 80,
         cloudHTTPSPort : 433,
         cloudUseHTTPS : false
-    }, settings);
+    }, origSettings);
 
     var self = this;
 
     this.apiBaseUrl = function() {
-        return (params.cloudUseHTTPS ? "https://" : "http://") +
-            params.cloudHost + ":" +
-            (params.cloudUseHTTPS ? params.cloudHTTPSPort : params.cloudHTTPPort)
+        return (settings.cloudUseHTTPS ? "https://" : "http://") +
+            settings.cloudHost + ":" +
+            (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort)
     }
 
-    this.getLoggedInUsername = function(onSuccess, onError) {
+    this.fetchAccount = function(params) {
         $.ajax({
             type: "GET",
             dataType : "json",
@@ -341,41 +391,55 @@ function CanopyClient(settings) {
             crossDomain: true
         })
         .done(function(data, textStatus, jqXHR) {
-            if (onSuccess != null)
-                onSuccess(data['username']);
+            if (params.onSuccess) {
+                var acct = new CanopyAccount({
+                    username: data['username'],
+                    email: data['email']
+                });
+                params.onSuccess(acct);
+            }
         })
         .fail(function() {
+            /* TODO: not_logged_in error */
             if (onError != null)
-                onError();
+                onError("unknown");
         });
-        
     }
 
-    this.login = function(username, password, onSuccess, onError) {
+    this.login = function(params) {
+        /* TODO: proper error handlilng */
+        /* TODO: response needs to include username & email */
         $.ajax({
             type: "POST",
             dataType : "json",
             url: self.apiBaseUrl() + "/login",
-            data: JSON.stringify({username : username, password : password}),
+            data: JSON.stringify({username : params.username, password : params.password}),
             xhrFields: {
                  withCredentials: true
             },
             crossDomain: true
         })
         .done(function(data, textStatus, jqXHR) {
+            var acct = new CanopyAccount({
+                username: data['username'],
+                email: data['email']
+            });
             if (data['success'] === true) {
-                onSuccess();
+                if (params.onSuccess)
+                    params.onSuccess(acct);
             }
             else {
-                onError();
+                if (params.onError)
+                    params.onError("unknown");
             }
         })
         .fail(function() {
-            onError();
+            if (params.onError)
+                params.onError("unknown");
         });
     }
 
-    this.logout = function(onSuccess, onError) {
+    this.logout = function(params) {
         $.ajax({
             type: "POST",
             dataType : "json",
@@ -386,16 +450,132 @@ function CanopyClient(settings) {
             crossDomain: true
         })
         .done(function() {
-            if (onSuccess != null)
-                onSuccess();
+            if (params.onSuccess)
+                params.onSuccess();
         })
         .fail(function() {
-            if (onError != null)
-                onError();
+            if (params.onError)
+                params.onError();
         });
     }
 
-    this.createAccount = function(username, email, password, password_confirm, onSuccess, onError) {
+    /* 
+     * CanopyAccount
+     *
+     * This is a private "class" of CanopyClient to prevent the caller from
+     * calling the constructor.
+     */
+    function CanopyAccount(initObj) {
+        this.email = function() {
+            return initObj.email;
+        }
+
+        this.username = function() {
+            return initObj.username;
+        }
+
+        this.fetchDevices = function(params) {
+            /* TODO: Filter to only show devices for this account */
+            $.ajax({
+                type: "GET",
+                dataType : "json",
+                url: self.apiBaseUrl() + "/devices",
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function(data, textStatus, jqXHR) {
+                /* construct CanopyDevice objects */
+                var devices = [];
+                for (var i = 0; i < data.devices.length(); i++) {
+                    devices.push(new Device(data.devices[i]));
+                }
+                if (params.onSuccess != null)
+                    params.onSuccess(devices);
+            })
+            .fail(function() {
+                if (params.onError != null)
+                    params.onError("unknown");
+            });
+        }
+    }
+
+    /*
+     * CanopyDevice
+     *
+     * This is a private "class" of CanopyClient to prevent the caller from
+     * calling the constructor.
+     */
+    function CanopyDevice(initObj) {
+        /*
+            {
+                "devices" : [
+                    {
+                        "device_id" : UUID,
+                        "friendly_name" : "mydevice",
+                        "device_class" : {
+                            "canopy.tutorial.sample_device_1" : {
+                                "cpu" : {
+                                    "category" : "sensor",
+                                    "datatype" : "float32",
+                                    "min_value" : 0.0,
+                                    "max_value" : 1.0,
+                                    "description" : "CPU usage percentage"
+                                },
+                                "reboot" : {
+                                    "category" : "control",
+                                    "control_type" : "trigger",
+                                    "datatype" : "boolean",
+                                    "description" : "Reboots the device"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        */
+
+        this.childClass = this.sddlClass.childClass;
+        this.control = this.sddlClass.control;
+        this.sensor = this.sddlClass.sensor;
+        this.property = this.sddlClass.property;
+
+        this.childClasses = this.sddlClass.childClasses;
+        this.control = this.sddlClass.control;
+        this.sensor = this.sddlClass.sensor;
+        this.property = this.sddlClass.property;
+
+        this.id = function() {
+            return initObj.device_id;
+        }
+
+        this.friendlyName = function() {
+            return initObj.friendly_name;
+        }
+
+        this.sddlClass = function() {
+            return new SDDLClass(initObj.sddl_class);
+        }
+
+        this.beginControlTransaction = function() {
+        }
+
+        this.fetchHistoricData = function() {
+        }
+
+        /* Lists accounts who have permission to access this */
+        this.permissions = function() {
+        }
+
+        this.share = function(params) {
+        }
+
+        this.setPermissions = function(params) {
+        }
+    }
+
+    /*this.createAccount = function(username, email, password, password_confirm, onSuccess, onError) {
         $.ajax({
             type: "POST",
             dataType : "json",
@@ -414,9 +594,9 @@ function CanopyClient(settings) {
             if (onError != null)
                 onError();
         });
-    }
+    }*/
 
-    this.fetchDevices = function(onSuccess, onError) {
+    /*this.fetchDevices = function(onSuccess, onError) {
         $.ajax({
             type: "GET",
             dataType : "json",
@@ -434,9 +614,9 @@ function CanopyClient(settings) {
             if (onError != null)
                 onError();
         });
-    }
+    }*/
 
-    this.fetchSensorData = function(deviceId, sensorName, onSuccess, onError) {
+    /*this.fetchSensorData = function(deviceId, sensorName, onSuccess, onError) {
         $.ajax({
             type: "GET",
             dataType: "json",
@@ -454,9 +634,9 @@ function CanopyClient(settings) {
             if (onError != null)
                 onError();
         });
-    }
+    }*/
 
-    this.setControlValue = function(deviceId, controlName, value, onSuccess, onError) {
+    /*this.setControlValue = function(deviceId, controlName, value, onSuccess, onError) {
         obj = {}
         obj[controlName] = value
         $.ajax({
@@ -475,9 +655,9 @@ function CanopyClient(settings) {
         .fail(function() {
             onError();
         });
-    }
+    }*/
 
-    this.share = function(deviceId, recipientEmail, accessLevel, shareLevel, onSuccess, onError) {
+    /*this.share = function(deviceId, recipientEmail, accessLevel, shareLevel, onSuccess, onError) {
         $.ajax({
             type: "POST",
             dataType : "json",
@@ -498,9 +678,9 @@ function CanopyClient(settings) {
         .fail(function() {
             onError();
         });
-    }
+    }*/
 
-    this.finishShareTransaction = function(deviceId, onSuccess, onError) {
+    /*this.finishShareTransaction = function(deviceId, onSuccess, onError) {
         $.ajax({
             type: "POST",
             dataType : "json",
@@ -520,7 +700,7 @@ function CanopyClient(settings) {
         .fail(function() {
             onError();
         });
-    }
+    }*/
 }
 
 /*
@@ -554,7 +734,7 @@ function CanopyClient(settings) {
 /* 
  * returns list: [#TOTAL, #CONNECTED, #OFFLINE]
  */
-function CanopyUtil_DeviceCounts(deviceObjs) {
+/*function CanopyUtil_DeviceCounts(deviceObjs) {
     var numDevices = deviceObjs.length;
     var out = [numDevices, 0, 0];
     for (var i = 0; i < numDevices; i++) {
@@ -566,12 +746,12 @@ function CanopyUtil_DeviceCounts(deviceObjs) {
         }
     }
     return out;
-}
+}*/
 
 /*
  * Returns object: {<control_name> : <definition>}
  */
-function CanopyUtil_GetDeviceControls(deviceObj) {
+/*function CanopyUtil_GetDeviceControls(deviceObj) {
     var cls = deviceObj.sddl_class;
     var out = {};
     for (var propDecl in cls) {
@@ -582,12 +762,12 @@ function CanopyUtil_GetDeviceControls(deviceObj) {
         }
     }
     return out;
-}
+}*/
 
 /*
  * Returns object: {<sensor_name> : <definition>}
  */
-function CanopyUtil_GetDeviceSensors(deviceObj) {
+/*function CanopyUtil_GetDeviceSensors(deviceObj) {
     var cls = deviceObj.sddl_class;
     var out = {};
     for (var propDecl in cls) {
@@ -598,4 +778,4 @@ function CanopyUtil_GetDeviceSensors(deviceObj) {
         }
     }
     return out;
-}
+}*/
