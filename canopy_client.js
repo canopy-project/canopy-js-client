@@ -1,79 +1,570 @@
-function CanopyPropertyBase()
-{
-    this.isBasicClass = function() {
-        return this.propertyType() == "class" && this.compositeType() == "single";
-    }
+function SDDLParser() {
+    function SDDLPropertyBase()
+    {
+        this.isBasicClass = function() {
+            return this.propertyType() == "class" && this.compositeType() == "single";
+        }
 
-    this.isBasicControl = function() {
-        return this.propertyType() == "control" && this.compositeType() == "single";
-    }
+        this.isBasicControl = function() {
+            return this.propertyType() == "control" && this.compositeType() == "single";
+        }
 
-    this.isBasicSensor = function() {
-        return this.propertyType() == "sensor" && this.compositeType() == "single";
-    }
+        this.isBasicSensor = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "single";
+        }
 
-    this.isClassArray = function() {
-        return this.propertyType() == "class" && this.compositeType() == "fixed-array";
-    }
+        this.isClassArray = function() {
+            return this.propertyType() == "class" && this.compositeType() == "fixed-array";
+        }
 
-    this.isControlArray = function() {
-        return this.propertyType() == "control" && this.compositeType() == "fixed-array";
-    }
+        this.isControlArray = function() {
+            return this.propertyType() == "control" && this.compositeType() == "fixed-array";
+        }
 
-    this.isSensorArray = function() {
-        return this.propertyType() == "sensor" && this.compositeType() == "fixed-array";
-    }
+        this.isSensorArray = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "fixed-array";
+        }
 
-    this.isClassMap = function() {
-        return this.propertyType() == "class" && this.compositeType() == "map";
-    }
+        this.isClassMap = function() {
+            return this.propertyType() == "class" && this.compositeType() == "map";
+        }
 
-    this.isControlMap = function() {
-        return this.propertyType() == "control" && this.compositeType() == "map";
-    }
+        this.isControlMap = function() {
+            return this.propertyType() == "control" && this.compositeType() == "map";
+        }
 
-    this.isSensorMap = function() {
-        return this.propertyType() == "sensor" && this.compositeType() == "map";
-    }
-}
-
-/*
- * <name> is string
- * <decl> is object
- */
-function CanopyClass(propName, decl) {
-    var self=this,
-        /* TODO: validation */
-        _authors = decl.authors, /* TODO: deep copy? */
-        _description = decl.description,
-        _properties = [],
-    ;
-    
-    $.extend(this, new CanopyPropertyBase());
-
-    for (var prop in decl) {
-        if (decl.hasOwnProperty(prop)) {
-            var info = _DeclInfo(decl);
-            var newProperty = null;
-            if (info.propertyType == "control") {
-                newProperty = CanopyControl(info.name, info.propertyType);
-            }
-            else if (info.propertyType == "sensor") {
-                newProperty = CanopySensor(info.name, info.propertyType);
-            }
-            else if (info.propertyType == "class") {
-                newProperty = CanopyClass(info.name, info.propertyType);
-            }
-
-            if (newProperty != null) {
-                _properties.push(newProperty);
-            }
+        this.isSensorMap = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "map";
         }
     }
 
-    this.authors = function() {
-        return _authors;
+    /*
+     * <params>
+     *      .authors : list of authors
+     *      .children : list of SDDLProperty objects
+     *      .description : text description
+     *      .name : name of this property
+     */
+    function SDDLClass(params) {
+        $.extend(this, new CanopyPropertyBase());
+
+        this.authors = function() {
+            return params.authors;
+        }
+
+        this.childClass = function(name) {
+            return this.childClasses()[name];
+        }
+
+        this.childClasses = function() {
+            var out = {};
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isClass()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.childClassList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isClass()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+
+        this.control = function(name) {
+            return this.controls()[name];
+        }
+
+        this.controls = function() {
+            var out = {};
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isControl()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.controlList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isControl()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+
+        this.compositeType = function() {
+            return "single";
+        }
+
+        this.description = function() {
+            return params.description;
+        }
+
+        this.name = function() {
+            return propName;
+        }
+
+        this.propertyType = function() {
+            return "class";
+        }
+
+        this.sensor = function(name) {
+            return this.sensors()[name];
+        }
+
+        this.sensors = function() {
+            var out = {};
+            for (var i = 0; i < _properties.length; i++) {
+                if (params.children[i].isSensor()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.sensorList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isSensor()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+
     }
+
+    /*
+     * <params>
+     *      .datatype
+     *      .controlType
+     *      .name
+     *      .minValue
+     *      .maxValue
+     *      .numericDisplayHint
+     *      .regex
+     *      .units
+     */
+    function SDDLControl(params) {
+        this.name = function() {
+            return params.name;
+        }
+
+        this.controlType = function() {
+            return params.controlType;
+        }
+
+        this.datatype = function() {
+            return params.datatype;
+        }
+
+        this.minValue = function() {
+            return params.minValue;
+        }
+
+        this.maxValue = function() {
+            return params.maxValue;
+        }
+
+        this.numericDisplayHint = function() {
+            return params.numericDisplayHint;
+        }
+
+        this.regex = function() {
+            return params.regex;
+        }
+        this.units = function() {
+            return params.units;
+        }
+    }
+
+    /*
+     * <params>
+     *      .datatype
+     *      .name
+     *      .minValue
+     *      .maxValue
+     *      .numericDisplayHint
+     *      .regex
+     *      .units
+     */
+    function SDDLSensor(params) {
+        this.name = function() {
+            return params.name;
+        }
+
+        this.compositeType = function() {
+            return "single";
+        }
+
+        this.datatype = function() {
+            return params.datatype;
+        }
+
+        this.minValue = function() {
+            return params.minValue;
+        }
+
+        this.maxValue = function() {
+            return params.maxValue;
+        }
+
+        this.numericDisplayHint = function() {
+            return params.numericDisplayHint;
+        }
+
+        this.propertyType = function() {
+            return "control";
+        }
+
+        this.regex = function() {
+            return params.regex;
+        }
+
+        this.units = function() {
+            return params.units;
+        }
+    }
+
+    this.ParseControl(decl, def) {
+        var params = {
+            controlType: "paramter",
+            datatype: "float32",
+            description: "",
+            maxValue: null,
+            minValue: null,
+            numericDisplayHint: "normal",
+            regex: null,
+            units: "",
+        }
+
+        var info = _DeclInfo(decl);
+
+        if (info.propertyType != "control") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseControl expected SDDL control declaration"
+            };
+        }
+
+        if (info.compositeType != "single") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseControl expected single control, not array or map"
+            };
+        }
+
+        for (key in def) {
+            if (def.hasOwnProperty[key]) {
+                if (key == "control-type") {
+                    if (!_IsValidControlType(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl: unsupported \"controlType\": " + def[key]
+                        };
+                    }
+                    params.controlType = def[key];
+                }
+                else if (key == "datatype") {
+                    if (!_IsValidDatatype(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl: unsupported \"controlType\": " + def[key]
+                        };
+                    }
+                    params.datatype = def[key];
+                }
+                else if (key == "description") {
+                    if (!_IsString(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl expected string for \"description\""
+                        };
+                    }
+                    params.description = def[key];
+                }
+                else if (key == "max-value") {
+                    if (!_IsNumberOrNull(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl exptected number or null for \"max-value\""
+                        };
+                    }
+                    params.minValue = def[key];
+                }
+                else if (key == "min-value") {
+                    if (!_IsNumberOrNull(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl exptected number or null for \"min-value\""
+                        };
+                    }
+                    params.maxValue = def[key];
+                }
+                else if (key == "numeric-display-hint") {
+                    if (!_IsValidNumericDisplayHint(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl: unsupported \"numeric-display-hint\"" + def[key]
+                        };
+                    }
+                    params.numericDisplayHint = def[key];
+                }
+                else if (key == "regex") {
+                    if (!_IsValidRegex(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl: invalid value for \"regex\""
+                        };
+                    }
+                    params.regex = def[key];
+                }
+                else if (key == "units") {
+                    if (!_IsString(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseControl: invalid value for \"units\""
+                        };
+                    }
+                    params.units = def[key];
+                }
+            }
+        }
+
+        return {
+            sddl: new SDDLControl(params),
+            error: null
+        };
+    }
+
+    function ParseSensor(decl, def) {
+        var params = {
+            datatype: "float32",
+            description: "",
+            maxValue: null,
+            minValue: null,
+            numericDisplayHint: "normal",
+            regex: null,
+            units: "",
+        }
+
+        var info = _DeclInfo(decl);
+
+        if (info.propertyType != "sensor") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseSensor expected SDDL sensor declaration"
+            };
+        }
+
+        if (info.compositeType != "single") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseSensor expected single sensor, not array or map"
+            };
+        }
+
+        for (key in def) {
+            if (def.hasOwnProperty[key]) {
+                if (key == "control-type") {
+                    if (!_IsValidControlType(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor: unsupported \"controlType\": " + def[key]
+                        };
+                    }
+                }
+                else if (key == "datatype") {
+                    if (!_IsValidDatatype(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor: unsupported \"controlType\": " + def[key]
+                        };
+                    }
+                }
+                else if (key == "description") {
+                    if (!_IsString(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor expected string for \"description\""
+                        };
+                    }
+                }
+                else if (key == "max-value") {
+                    if (!_IsNumberOrNull(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor exptected number or null for \"max-value\""
+                        };
+                    }
+                }
+                else if (key == "min-value") {
+                    if (!_IsNumberOrNull(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor exptected number or null for \"min-value\""
+                        };
+                    }
+                }
+                else if (key == "numeric-display-hint") {
+                    if (!_IsValidNumericDisplayHint(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor: unsupported \"numeric-display-hint\"" + def[key]
+                        };
+                    }
+                }
+                else if (key == "regex") {
+                    if (!_IsValidRegex(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor: invalid value for \"regex\""
+                        };
+                    }
+                }
+                else if (key == "units") {
+                    if (!_IsString(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseSensor: invalid value for \"units\""
+                        };
+                    }
+                }
+            }
+        }
+
+        return {
+            sddl: new SDDLSensor(params),
+            error: null
+        };
+    }
+
+    /*
+     * Returns object 
+     *  {
+     *      sddl: SDDLClass or null
+     *      error: string or null
+     *  }
+     */
+    function ParseClass(decl, def) {
+        var params = {
+            authors: [],
+            children : []
+            description: ""
+        }
+        var info = _DeclInfo(decl);
+        var result;
+
+        if (info.propertyType != "class") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseClass expected SDDL class declaration"
+            };
+        }
+
+        if (info.compositeType != "single") {
+            return {
+                sddl: null, 
+                error: "_SDDLParseClass expected single class, not array or map");
+            };
+        }
+
+        for (key in def) {
+            if (def.hasOwnProperty[key]) {
+                if (key == "authors") {
+                    if (!_IsListOfStrings(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseClass expected list of strings for \"authors\"");
+                        };
+                    }
+                    params.authors = authors;
+                }
+                else if (key == "description") {
+                    if (!_IsString(def[key])) {
+                        return {
+                            sddl: null, 
+                            error: "_SDDLParseClass expected string for \"description\"");
+                        }
+                    }
+                    params.description = description;
+                }
+                else {
+                    var propDeclInfo = _DeclInfo(key);
+                    if (propDeclInfo.propertyType == "class") {
+                        result = _SDDLParseClass(key, def[key]);
+                        if (result.error != null) {
+                            return result;
+                        }
+                        params.children.push(result.sddl);
+                    }
+                    else if (propDeclInfo.propertyType == "control") {
+                        result = _SDDLParseControl(key, def[key]);
+                        if (result.error != null) {
+                            return result;
+                        }
+                        params.children.push(result.sddl);
+                    }
+                    else if (propDeclInfo.propertyType == "sensor") {
+                        result = _SDDLParseSensor(key, def[key]);
+                        if (result.error != null) {
+                            return result;
+                        }
+                        params.children.push(result.sddl);
+                    }
+                }
+            }
+        }
+
+        return {
+            sddl: new SDDLClass(params),
+            error: null
+        };
+    }
+}
+
+
+
+function CanopySensorInstance(sddlSensor, propValue) {
+    this.name = sddlSensor.name;
+    this.compositeType = sddlSensor.compositeType;
+    this.datatype = sddlSensor.datatype;
+    this.minValue = sddlSensor.minValue;
+    this.maxValue = sddlSensor.maxValue;
+    this.numericDisplayHint = sddlSensor.numericDisplayHint;
+    this.propertyType = sddlSensor.propertyType;
+    this.regex = sddlSensor.regex;
+    this.units = sddlSensor.units;
+
+    this.value = function(){
+        return propValue;
+    };
+
+    this.sddl = function() {
+        return sddlSensor;
+    }
+}
+
+
+/*
+ * <params>
+ *  .sddl -- SDDLClass object
+ *  .children -- List of CanopyPropertyInstance obects
+ */
+function CanopyClassInstance(params) {
+    $.extend(this, new CanopyPropertyInstanceBase());
+
+    this.authors = params.sddl.authors;
+    this.description = params.sddl.description;
+    this.name = params.sddl.name;
 
     this.childClass = function(name) {
         return this.childClasses()[name];
@@ -81,9 +572,9 @@ function CanopyClass(propName, decl) {
 
     this.childClasses = function() {
         var out = {};
-        for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isClass()) {
-                out[_properties[i].name()] = _properties[i];
+        for (var i = 0; i < params.children.length; i++) {
+            if (params.children[i].isClass()) {
+                out[params.children[i].name()] = params.children[i];
             }
         }
         return out;
@@ -91,9 +582,9 @@ function CanopyClass(propName, decl) {
 
     this.childClassList = function() {
         var out = [];
-        for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isClass()) {
-                out.push(_properties[i]);
+        for (var i = 0; i < params.children.length; i++) {
+            if (params.children[i].isClass()) {
+                out.push(params.children[i]);
             }
         }
         return out;
@@ -105,9 +596,9 @@ function CanopyClass(propName, decl) {
 
     this.controls = function() {
         var out = {};
-        for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isControl()) {
-                out[_properties[i].name()] = _properties[i];
+        for (var i = 0; i < params.children.length; i++) {
+            if (params.children[i].isControl()) {
+                out[params.children[i].name()] = params.children[i];
             }
         }
         return out;
@@ -115,9 +606,9 @@ function CanopyClass(propName, decl) {
 
     this.controlList = function() {
         var out = [];
-        for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isControl()) {
-                out.push(_properties[i]);
+        for (var i = 0; i < params.children.length; i++) {
+            if (params.children[i].isControl()) {
+                out.push(params.children[i]);
             }
         }
         return out;
@@ -125,14 +616,6 @@ function CanopyClass(propName, decl) {
 
     this.compositeType = function() {
         return "single";
-    }
-
-    this.description = function() {
-        return _description;
-    }
-
-    this.name = function() {
-        return propName;
     }
 
     this.propertyType = function() {
@@ -146,8 +629,8 @@ function CanopyClass(propName, decl) {
     this.sensors = function() {
         var out = {};
         for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isSensor()) {
-                out[_properties[i].name()] = _properties[i];
+            if (params.children[i].isSensor()) {
+                out[params.children[i].name()] = params.children[i];
             }
         }
         return out;
@@ -155,66 +638,126 @@ function CanopyClass(propName, decl) {
 
     this.sensorList = function() {
         var out = [];
-        for (var i = 0; i < _properties.length; i++) {
-            if (_properties[i].isSensor()) {
-                out.push(_properties[i]);
+        for (var i = 0; i < params.children.length; i++) {
+            if (params.children[i].isSensor()) {
+                out.push(params.children[i]);
             }
         }
         return out;
     }
 
 }
+}
 
-function CanopySensor(propName, decl) {
-    var self=this,
-        /* TODO: validation */
-        _datatype = decl.datatype,
-        _minValue = decl.minValue,
-        _maxValue = decl.maxValue,
-        _numericDisplayHint = decl.numericDisplayHint,
-        _regex = decl.regex,
-        _units = decl.units,
-        _value = decl.value
-    ;
+/*
+ *  .values -- Object containing values of some or all children, for example:
+ *  {
+ *      "gps" : {
+ *          "latitude" : 1.3242,
+ *          "longitude" : 34.29543
+ *      },
+ *      "speed" : 4
+ *  }
+ */
+function _CreateClassInstance(sddl, values) {
+    var props = sddl.propertyList();
+    var children = [];
+    for (i = 0; i < props.length; i++) {
 
-    this.name = function() {
-        return _name;
+        var v = null;
+        if (values != null && values[props[i].name()])
+            v = values[props[i].name()];
+        if (props[i].isClass()) {
+            result = _CreateClassInstance(props[i], v);
+            if (result.error != null) {
+                return result;
+            }
+            children.push(result.instance);
+        }
+        else if (props[i].isSensor()) {
+            _CreateSensorInstance(props[i], v);
+            if (result.error != null) {
+                return result;
+            }
+            children.push(result.instance);
+        }
+        else if (props[i].isControl()) {
+            _CreateControlInstance(props[i], v);
+            if (result.error != null) {
+                return result;
+            }
+            children.push(result.instance);
+        }
     }
 
-    this.compositeType = function() {
-        return "single";
+    return {
+        instance: new CanopyClassInstance(sddl, children),
+        error: null
+    }
+}
+
+/*
+ * Returns CanopyClassInstance.
+ */
+function _ParseResponse(sddl, values)
+{
+    var i = 0;
+    var result = null;
+    for (key in sddl) {
+        if (sddl.hasOwnProperty(key)) {
+            if (i == 0) {
+                result = _SDDLParseClass(def, decl);
+                if (result.error != null) {
+                    return result;
+                }
+            }
+            else {
+                return {
+                    instance: null,
+                    error: "_ParseResponse expected single class declaration";
+                }
+            }
+            i++;
+        }
     }
 
-    this.datatype = function() {
-        return _dataytpe;
-    }
-
-    this.minValue = function() {
-        return _minValue;
-    }
-
-    this.maxValue = function() {
-        return _maxValue;
-    }
-    this.numericDisplayHint = function() {
-        return _numericDisplayHint;
-    }
-
-    this.propertyType = function() {
-        return "control";
-    }
-
-    this.regex = function() {
-        return _regex;
-    }
-
-    this.units = function() {
-        return _units;
-    }
-
-    this.value = function() {
-        return _value;
-    }
+    result = _CreateClassInstance(result.sddl, values);
+    return result;
+}
+    /*
+        {
+            "devices" : [
+                {
+                    "device_id" : UUID,
+                    "friendly_name" : "mydevice",
+                    "device_class" : {
+                        "canopy.tutorial.sample_device_1" : {
+                            "cpu" : {
+                                "category" : "sensor",
+                                "datatype" : "float32",
+                                "min_value" : 0.0,
+                                "max_value" : 1.0,
+                                "description" : "CPU usage percentage"
+                            },
+                            "reboot" : {
+                                "category" : "control",
+                                "control_type" : "trigger",
+                                "datatype" : "boolean",
+                                "description" : "Reboots the device"
+                            }
+                        }
+                    }
+                    "property_values" : {
+                        "cpu" : 43,
+                        "gps" : {
+                            "latitude" : 423.433,
+                            "longitude" : 543.235,
+                        }
+                    }
+                }
+            ]
+        }
+    */
 }
 
 function CanopyControlArray(propName, size, decl)
@@ -245,101 +788,6 @@ function CanopyControlArray(propName, size, decl)
     }
 }
 
-function SDDLControlProperty(initObj) {
-
-    /* 
-     * .name()
-     *
-     *  Obtain name of this property.
-     */
-    this.name = function() {
-        return initObj.name;
-    }
-
-    /* 
-     * .controlType()
-     *
-     *  Obtain control type of this property.
-     *  Return value will be one of:
-     *      "parameter",
-     *      "trigger",
-     */
-    this.name = function() {
-        return initObj.controlType;
-    }
-
-    /* 
-     * .datatype()
-     *
-     *  Obtain datatype of this property.
-     *  Return value will be one of:
-     *      "void",
-     *      "string",
-     *      "bool",
-     *      "int8",
-     *      "uint8",
-     *      "int16",
-     *      "uint16",
-     *      "int32",
-     *      "uint32",
-     *      "float32",
-     *      "float64",
-     *      "datetime",
-     */
-    this.datatype = function() {
-        return initObj.datatype;
-    }
-
-    /* 
-     * .minValue()
-     *
-     *  Obtain minimum value of this property, if any, otherwise undefined.
-     */
-    this.minValue = function() {
-        return initObj.minValue;
-    }
-
-    /* 
-     * .maxValue()
-     *
-     *  Obtain minimum value of this property, if any, otherwise undefined.
-     */
-    this.maxValue = function() {
-        return initObj.maxValue;
-    }
-
-    /* 
-     * .numericDisplayHint()
-     *
-     *  Obtain numeric display hint.  Return value will be one of:
-     *      "normal",
-     *      "percentage",
-     *      "scientific",
-     *      "hex"
-     */
-    this.numericDisplayHint = function() {
-        return initObj.numericDisplayHint;
-    }
-
-    /* 
-     * .regex()
-     *
-     *  Obtain regular expression criteria, if any, otherwise null.
-     */
-    this.regex = function() {
-        return initObj.regex;
-    }
-
-    /* 
-     * .units()
-     *
-     *  Obtain units string.
-     */
-    this.units = function() {
-        return initObj.units;
-    }
-
-}
 
 /*device.beginControlTransaction()
     .setControlValue("speed", 4)
@@ -506,33 +954,6 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyDevice(initObj) {
-        /*
-            {
-                "devices" : [
-                    {
-                        "device_id" : UUID,
-                        "friendly_name" : "mydevice",
-                        "device_class" : {
-                            "canopy.tutorial.sample_device_1" : {
-                                "cpu" : {
-                                    "category" : "sensor",
-                                    "datatype" : "float32",
-                                    "min_value" : 0.0,
-                                    "max_value" : 1.0,
-                                    "description" : "CPU usage percentage"
-                                },
-                                "reboot" : {
-                                    "category" : "control",
-                                    "control_type" : "trigger",
-                                    "datatype" : "boolean",
-                                    "description" : "Reboots the device"
-                                }
-                            }
-                        }
-                    }
-                ]
-            }
-        */
 
         this.childClass = this.sddlClass.childClass;
         this.control = this.sddlClass.control;
