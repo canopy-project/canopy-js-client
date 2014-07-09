@@ -533,197 +533,11 @@ function SDDLParser() {
 
 
 
-function CanopySensorInstance(sddlSensor, propValue) {
-    this.name = sddlSensor.name;
-    this.compositeType = sddlSensor.compositeType;
-    this.datatype = sddlSensor.datatype;
-    this.minValue = sddlSensor.minValue;
-    this.maxValue = sddlSensor.maxValue;
-    this.numericDisplayHint = sddlSensor.numericDisplayHint;
-    this.propertyType = sddlSensor.propertyType;
-    this.regex = sddlSensor.regex;
-    this.units = sddlSensor.units;
 
-    this.value = function(){
-        return propValue;
-    };
 
-    this.sddl = function() {
-        return sddlSensor;
-    }
 }
 
 
-/*
- * <params>
- *  .sddl -- SDDLClass object
- *  .children -- List of CanopyPropertyInstance obects
- */
-function CanopyClassInstance(params) {
-    $.extend(this, new CanopyPropertyInstanceBase());
-
-    this.authors = params.sddl.authors;
-    this.description = params.sddl.description;
-    this.name = params.sddl.name;
-
-    this.childClass = function(name) {
-        return this.childClasses()[name];
-    }
-
-    this.childClasses = function() {
-        var out = {};
-        for (var i = 0; i < params.children.length; i++) {
-            if (params.children[i].isClass()) {
-                out[params.children[i].name()] = params.children[i];
-            }
-        }
-        return out;
-    }
-
-    this.childClassList = function() {
-        var out = [];
-        for (var i = 0; i < params.children.length; i++) {
-            if (params.children[i].isClass()) {
-                out.push(params.children[i]);
-            }
-        }
-        return out;
-    }
-
-    this.control = function(name) {
-        return this.controls()[name];
-    }
-
-    this.controls = function() {
-        var out = {};
-        for (var i = 0; i < params.children.length; i++) {
-            if (params.children[i].isControl()) {
-                out[params.children[i].name()] = params.children[i];
-            }
-        }
-        return out;
-    }
-
-    this.controlList = function() {
-        var out = [];
-        for (var i = 0; i < params.children.length; i++) {
-            if (params.children[i].isControl()) {
-                out.push(params.children[i]);
-            }
-        }
-        return out;
-    }
-
-    this.compositeType = function() {
-        return "single";
-    }
-
-    this.propertyType = function() {
-        return "class";
-    }
-
-    this.sensor = function(name) {
-        return this.sensors()[name];
-    }
-
-    this.sensors = function() {
-        var out = {};
-        for (var i = 0; i < _properties.length; i++) {
-            if (params.children[i].isSensor()) {
-                out[params.children[i].name()] = params.children[i];
-            }
-        }
-        return out;
-    }
-
-    this.sensorList = function() {
-        var out = [];
-        for (var i = 0; i < params.children.length; i++) {
-            if (params.children[i].isSensor()) {
-                out.push(params.children[i]);
-            }
-        }
-        return out;
-    }
-
-}
-}
-
-/*
- *  .values -- Object containing values of some or all children, for example:
- *  {
- *      "gps" : {
- *          "latitude" : 1.3242,
- *          "longitude" : 34.29543
- *      },
- *      "speed" : 4
- *  }
- */
-function _CreateClassInstance(sddl, values) {
-    var props = sddl.propertyList();
-    var children = [];
-    for (i = 0; i < props.length; i++) {
-
-        var v = null;
-        if (values != null && values[props[i].name()])
-            v = values[props[i].name()];
-        if (props[i].isClass()) {
-            result = _CreateClassInstance(props[i], v);
-            if (result.error != null) {
-                return result;
-            }
-            children.push(result.instance);
-        }
-        else if (props[i].isSensor()) {
-            _CreateSensorInstance(props[i], v);
-            if (result.error != null) {
-                return result;
-            }
-            children.push(result.instance);
-        }
-        else if (props[i].isControl()) {
-            _CreateControlInstance(props[i], v);
-            if (result.error != null) {
-                return result;
-            }
-            children.push(result.instance);
-        }
-    }
-
-    return {
-        instance: new CanopyClassInstance(sddl, children),
-        error: null
-    }
-}
-
-/*
- * Returns CanopyClassInstance.
- */
-function _ParseResponse(sddl, values)
-{
-    var i = 0;
-    var result = null;
-    for (key in sddl) {
-        if (sddl.hasOwnProperty(key)) {
-            if (i == 0) {
-                result = _SDDLParseClass(def, decl);
-                if (result.error != null) {
-                    return result;
-                }
-            }
-            else {
-                return {
-                    instance: null,
-                    error: "_ParseResponse expected single class declaration";
-                }
-            }
-            i++;
-        }
-    }
-
-    result = _CreateClassInstance(result.sddl, values);
-    return result;
-}
     /*
         {
             "devices" : [
@@ -819,6 +633,8 @@ function CanopyClient(origSettings) {
     }, origSettings);
 
     var self = this;
+
+    var sddlParser = new SDDLParser();
 
     this.apiBaseUrl = function() {
         return (settings.cloudUseHTTPS ? "https://" : "http://") +
@@ -992,6 +808,264 @@ function CanopyClient(origSettings) {
 
         this.setPermissions = function(params) {
         }
+    }
+
+    /*
+     * CanopyClassInstance
+     *
+     * <params>
+     *  .sddl -- SDDLClass object
+     *  .children -- List of CanopyPropertyInstance obects
+     */
+    function CanopyClassInstance(params) {
+        $.extend(this, new CanopyPropertyInstanceBase());
+
+        this.authors = params.sddl.authors;
+        this.description = params.sddl.description;
+        this.name = params.sddl.name;
+
+        this.childClass = function(name) {
+            return this.childClasses()[name];
+        }
+
+        this.childClasses = function() {
+            var out = {};
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isClass()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.childClassList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isClass()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+
+        this.control = function(name) {
+            return this.controls()[name];
+        }
+
+        this.controls = function() {
+            var out = {};
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isControl()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.controlList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isControl()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+
+        this.compositeType = function() {
+            return "single";
+        }
+
+        this.propertyType = function() {
+            return "class";
+        }
+
+        this.sensor = function(name) {
+            return this.sensors()[name];
+        }
+
+        this.sensors = function() {
+            var out = {};
+            for (var i = 0; i < _properties.length; i++) {
+                if (params.children[i].isSensor()) {
+                    out[params.children[i].name()] = params.children[i];
+                }
+            }
+            return out;
+        }
+
+        this.sensorList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                if (params.children[i].isSensor()) {
+                    out.push(params.children[i]);
+                }
+            }
+            return out;
+        }
+    }
+
+    /*
+     * CanopyControlInstance
+     *
+     * This is a private "class" of CanopyClient to prevent the caller from
+     * calling the constructor.
+     */
+    function CanopyControlInstance(sddlControl, propValue) {
+        this.name = sddlSensor.name;
+        this.compositeType = sddlSensor.compositeType;
+        this.datatype = sddlSensor.datatype;
+        this.minValue = sddlSensor.minValue;
+        this.maxValue = sddlSensor.maxValue;
+        this.numericDisplayHint = sddlSensor.numericDisplayHint;
+        this.propertyType = sddlSensor.propertyType;
+        this.regex = sddlSensor.regex;
+        this.units = sddlSensor.units;
+
+        this.value = function(){
+            return propValue;
+        };
+
+        this.sddl = function() {
+            return sddlSensor;
+        }
+
+        this.setTargetValue = function() {
+            /* TODO: implement */
+        }
+    }
+    /*
+     * CanopySensorInstance
+     *
+     * This is a private "class" of CanopyClient to prevent the caller from
+     * calling the constructor.
+     */
+    function CanopySensorInstance(sddlSensor, propValue) {
+        this.name = sddlSensor.name;
+        this.compositeType = sddlSensor.compositeType;
+        this.datatype = sddlSensor.datatype;
+        this.minValue = sddlSensor.minValue;
+        this.maxValue = sddlSensor.maxValue;
+        this.numericDisplayHint = sddlSensor.numericDisplayHint;
+        this.propertyType = sddlSensor.propertyType;
+        this.regex = sddlSensor.regex;
+        this.units = sddlSensor.units;
+
+        this.value = function(){
+            return propValue;
+        };
+
+        this.sddl = function() {
+            return sddlSensor;
+        }
+    }
+
+    /*
+     *  CreateClassInstance
+     *
+     *  <sddl> -- SDDLClass object
+     *  <values> -- Object containing values of some or all children, for example:
+     *  {
+     *      "gps" : {
+     *          "latitude" : 1.3242,
+     *          "longitude" : 34.29543
+     *      },
+     *      "speed" : 4
+     *  }
+     */
+    function CreateClassInstance(sddl, values) {
+        var props = sddl.propertyList();
+        var children = [];
+        for (i = 0; i < props.length; i++) {
+
+            var v = null;
+            if (values != null && values[props[i].name()])
+                v = values[props[i].name()];
+            if (props[i].isClass()) {
+                result = _CreateClassInstance(props[i], v);
+                if (result.error != null) {
+                    return result;
+                }
+                children.push(result.instance);
+            }
+            else if (props[i].isSensor()) {
+                _CreateSensorInstance(props[i], v);
+                if (result.error != null) {
+                    return result;
+                }
+                children.push(result.instance);
+            }
+            else if (props[i].isControl()) {
+                _CreateControlInstance(props[i], v);
+                if (result.error != null) {
+                    return result;
+                }
+                children.push(result.instance);
+            }
+        }
+
+        return {
+            instance: new CanopyClassInstance(sddl, children),
+            error: null
+        }
+    }
+
+    /*
+     * CreateControlInstance
+     *
+     *  <sddl> -- SDDLControl object
+     *  <value> -- Last known control value, or null
+     */
+    function CreateControlInstance(sddl, value) {
+        /* TODO: verify validity of value */
+        return {
+            instance: new CanopyControlInstance(sddl, value),
+            error: null
+        }
+    }
+
+    /*
+     * CreateSensorInstance
+     *
+     *  <sddl> -- SDDLControl object
+     *  <value> -- Last known control value, or null
+     */
+    function CreateSensorInstance(sddl, value) {
+        /* TODO: verify validity of value */
+        return {
+            instance: new CanopySensorInstance(sddl, value),
+            error: null
+        }
+    }
+
+    /*
+     * ParseResponse
+     * Returns {instance: CanopyClassInstance or null, error: null or string}
+     */
+    function ParseResponse(sddlJsonObj, valuesJsonObj)
+    {
+        var i = 0;
+        var result = null;
+        for (key in sddl) {
+            if (sddl.hasOwnProperty(key)) {
+                if (i == 0) {
+                    result = _SDDLParseClass(def, decl);
+                    if (result.error != null) {
+                        return result;
+                    }
+                }
+                else {
+                    return {
+                        instance: null,
+                        error: "_ParseResponse expected single class declaration";
+                    }
+                }
+                i++;
+            }
+        }
+
+        result = _CreateClassInstance(result.sddl, values);
+        return result;
     }
 
     /*this.createAccount = function(username, email, password, password_confirm, onSuccess, onError) {
