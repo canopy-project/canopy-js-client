@@ -43,6 +43,7 @@ function CanopyPropertyBase()
  */
 function CanopyClass(propName, decl) {
     var self=this,
+        /* TODO: validation */
         _authors = decl.authors, /* TODO: deep copy? */
         _description = decl.description,
         _properties = [],
@@ -164,86 +165,83 @@ function CanopyClass(propName, decl) {
 
 }
 
-function SDDLSensorProperty(initObj) {
+function CanopySensor(propName, decl) {
+    var self=this,
+        /* TODO: validation */
+        _datatype = decl.datatype,
+        _minValue = decl.minValue,
+        _maxValue = decl.maxValue,
+        _numericDisplayHint = decl.numericDisplayHint,
+        _regex = decl.regex,
+        _units = decl.units,
+        _value = decl.value
+    ;
 
-    /* 
-     * .name()
-     *
-     *  Obtain name of this property.
-     */
     this.name = function() {
-        return initObj.name;
+        return _name;
     }
 
-    /* 
-     * .datatype()
-     *
-     *  Obtain datatype of this property.
-     *  Return value will be one of:
-     *      "void",
-     *      "string",
-     *      "bool",
-     *      "int8",
-     *      "uint8",
-     *      "int16",
-     *      "uint16",
-     *      "int32",
-     *      "uint32",
-     *      "float32",
-     *      "float64",
-     *      "datetime",
-     */
+    this.compositeType = function() {
+        return "single";
+    }
+
     this.datatype = function() {
-        return initObj.datatype;
+        return _dataytpe;
     }
 
-    /* 
-     * .minValue()
-     *
-     *  Obtain minimum value of this property, if any, otherwise undefined.
-     */
     this.minValue = function() {
-        return initObj.minValue;
+        return _minValue;
     }
 
-    /* 
-     * .maxValue()
-     *
-     *  Obtain minimum value of this property, if any, otherwise undefined.
-     */
     this.maxValue = function() {
-        return initObj.maxValue;
+        return _maxValue;
     }
-
-    /* 
-     * .numericDisplayHint()
-     *
-     *  Obtain numeric display hint.  Return value will be one of:
-     *      "normal",
-     *      "percentage",
-     *      "scientific",
-     *      "hex"
-     */
     this.numericDisplayHint = function() {
-        return initObj.numericDisplayHint;
+        return _numericDisplayHint;
     }
 
-    /* 
-     * .regex()
-     *
-     *  Obtain regular expression criteria, if any, otherwise null.
-     */
+    this.propertyType = function() {
+        return "control";
+    }
+
     this.regex = function() {
-        return initObj.regex;
+        return _regex;
     }
 
-    /* 
-     * .units()
-     *
-     *  Obtain units string.
-     */
     this.units = function() {
-        return initObj.units;
+        return _units;
+    }
+
+    this.value = function() {
+        return _value;
+    }
+}
+
+function CanopyControlArray(propName, size, decl)
+{
+    var _items;
+
+    for (var i = 0; i < size; i++) {
+        var control = new CanopyControl(propName + "[" + i + "]", decl)
+    }
+
+    this.compositeType = function() {
+        return "fixed-array";
+    }
+
+    this.propertyType = function() {
+        return "control";
+    }
+
+    this.item = function(index) {
+        return this.items()[index];
+    }
+
+    this.items = function() {
+    }
+
+    this.numItems = function() {
+        return this.items().length();
     }
 }
 
