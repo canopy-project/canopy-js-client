@@ -234,7 +234,7 @@ function SDDLParser() {
         }
     }
 
-    this.ParseControl(decl, def) {
+    function ParseControl(decl, def) {
         var params = {
             controlType: "paramter",
             datatype: "float32",
@@ -251,14 +251,14 @@ function SDDLParser() {
         if (info.propertyType != "control") {
             return {
                 sddl: null, 
-                error: "_SDDLParseControl expected SDDL control declaration"
+                error: "SDDLParser:ParseControl expected SDDL control declaration"
             };
         }
 
         if (info.compositeType != "single") {
             return {
                 sddl: null, 
-                error: "_SDDLParseControl expected single control, not array or map"
+                error: "SDDLParser:ParseControl expected single control, not array or map"
             };
         }
 
@@ -268,7 +268,7 @@ function SDDLParser() {
                     if (!_IsValidControlType(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseControl: unsupported \"controlType\": " + def[key]
                         };
                     }
                     params.controlType = def[key];
@@ -277,7 +277,7 @@ function SDDLParser() {
                     if (!_IsValidDatatype(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseControl: unsupported \"controlType\": " + def[key]
                         };
                     }
                     params.datatype = def[key];
@@ -286,7 +286,7 @@ function SDDLParser() {
                     if (!_IsString(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl expected string for \"description\""
+                            error: "SDDLParser:ParseControl expected string for \"description\""
                         };
                     }
                     params.description = def[key];
@@ -295,7 +295,7 @@ function SDDLParser() {
                     if (!_IsNumberOrNull(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl exptected number or null for \"max-value\""
+                            error: "SDDLParser:ParseControl exptected number or null for \"max-value\""
                         };
                     }
                     params.minValue = def[key];
@@ -304,7 +304,7 @@ function SDDLParser() {
                     if (!_IsNumberOrNull(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl exptected number or null for \"min-value\""
+                            error: "SDDLParser:ParseControl exptected number or null for \"min-value\""
                         };
                     }
                     params.maxValue = def[key];
@@ -313,7 +313,7 @@ function SDDLParser() {
                     if (!_IsValidNumericDisplayHint(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl: unsupported \"numeric-display-hint\"" + def[key]
+                            error: "SDDLParser:ParseControl: unsupported \"numeric-display-hint\"" + def[key]
                         };
                     }
                     params.numericDisplayHint = def[key];
@@ -322,7 +322,7 @@ function SDDLParser() {
                     if (!_IsValidRegex(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl: invalid value for \"regex\""
+                            error: "SDDLParser:ParseControl: invalid value for \"regex\""
                         };
                     }
                     params.regex = def[key];
@@ -331,7 +331,7 @@ function SDDLParser() {
                     if (!_IsString(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseControl: invalid value for \"units\""
+                            error: "SDDLParser:ParseControl: invalid value for \"units\""
                         };
                     }
                     params.units = def[key];
@@ -361,14 +361,14 @@ function SDDLParser() {
         if (info.propertyType != "sensor") {
             return {
                 sddl: null, 
-                error: "_SDDLParseSensor expected SDDL sensor declaration"
+                error: "SDDLParser:ParseSensor expected SDDL sensor declaration"
             };
         }
 
         if (info.compositeType != "single") {
             return {
                 sddl: null, 
-                error: "_SDDLParseSensor expected single sensor, not array or map"
+                error: "SDDLParser:ParseSensor expected single sensor, not array or map"
             };
         }
 
@@ -378,7 +378,7 @@ function SDDLParser() {
                     if (!_IsValidControlType(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseSensor: unsupported \"controlType\": " + def[key]
                         };
                     }
                 }
@@ -386,7 +386,7 @@ function SDDLParser() {
                     if (!_IsValidDatatype(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseSensor: unsupported \"controlType\": " + def[key]
                         };
                     }
                 }
@@ -394,7 +394,7 @@ function SDDLParser() {
                     if (!_IsString(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor expected string for \"description\""
+                            error: "SDDLParser:ParseSensor expected string for \"description\""
                         };
                     }
                 }
@@ -402,7 +402,7 @@ function SDDLParser() {
                     if (!_IsNumberOrNull(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor exptected number or null for \"max-value\""
+                            error: "SDDLParser:ParseSensor exptected number or null for \"max-value\""
                         };
                     }
                 }
@@ -410,7 +410,7 @@ function SDDLParser() {
                     if (!_IsNumberOrNull(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor exptected number or null for \"min-value\""
+                            error: "SDDLParser:ParseSensor exptected number or null for \"min-value\""
                         };
                     }
                 }
@@ -418,7 +418,7 @@ function SDDLParser() {
                     if (!_IsValidNumericDisplayHint(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor: unsupported \"numeric-display-hint\"" + def[key]
+                            error: "SDDLParser:ParseSensor: unsupported \"numeric-display-hint\"" + def[key]
                         };
                     }
                 }
@@ -426,7 +426,7 @@ function SDDLParser() {
                     if (!_IsValidRegex(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor: invalid value for \"regex\""
+                            error: "SDDLParser:ParseSensor: invalid value for \"regex\""
                         };
                     }
                 }
@@ -434,7 +434,7 @@ function SDDLParser() {
                     if (!_IsString(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseSensor: invalid value for \"units\""
+                            error: "SDDLParser:ParseSensor: invalid value for \"units\""
                         };
                     }
                 }
@@ -457,7 +457,7 @@ function SDDLParser() {
     function ParseClass(decl, def) {
         var params = {
             authors: [],
-            children : []
+            children : [],
             description: ""
         }
         var info = _DeclInfo(decl);
@@ -466,14 +466,14 @@ function SDDLParser() {
         if (info.propertyType != "class") {
             return {
                 sddl: null, 
-                error: "_SDDLParseClass expected SDDL class declaration"
+                error: "SDDLParser:ParseClass expected SDDL class declaration"
             };
         }
 
         if (info.compositeType != "single") {
             return {
                 sddl: null, 
-                error: "_SDDLParseClass expected single class, not array or map");
+                error: "SDDLParser:ParseClass expected single class, not array or map"
             };
         }
 
@@ -483,7 +483,7 @@ function SDDLParser() {
                     if (!_IsListOfStrings(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseClass expected list of strings for \"authors\"");
+                            error: "SDDLParser:ParseClass expected list of strings for \"authors\""
                         };
                     }
                     params.authors = authors;
@@ -492,7 +492,7 @@ function SDDLParser() {
                     if (!_IsString(def[key])) {
                         return {
                             sddl: null, 
-                            error: "_SDDLParseClass expected string for \"description\"");
+                            error: "SDDLParser:ParseClass expected string for \"description\""
                         }
                     }
                     params.description = description;
@@ -533,11 +533,6 @@ function SDDLParser() {
 
 
 
-
-
-}
-
-
     /*
         {
             "devices" : [
@@ -572,7 +567,6 @@ function SDDLParser() {
             ]
         }
     */
-}
 
 function CanopyControlArray(propName, size, decl)
 {
@@ -979,24 +973,27 @@ function CanopyClient(origSettings) {
         for (i = 0; i < props.length; i++) {
 
             var v = null;
+            var result;
+
             if (values != null && values[props[i].name()])
                 v = values[props[i].name()];
+
             if (props[i].isClass()) {
-                result = _CreateClassInstance(props[i], v);
+                result = CreateClassInstance(props[i], v);
                 if (result.error != null) {
                     return result;
                 }
                 children.push(result.instance);
             }
             else if (props[i].isSensor()) {
-                _CreateSensorInstance(props[i], v);
+                result = CreateSensorInstance(props[i], v);
                 if (result.error != null) {
                     return result;
                 }
                 children.push(result.instance);
             }
             else if (props[i].isControl()) {
-                _CreateControlInstance(props[i], v);
+                result = CreateControlInstance(props[i], v);
                 if (result.error != null) {
                     return result;
                 }
@@ -1057,7 +1054,7 @@ function CanopyClient(origSettings) {
                 else {
                     return {
                         instance: null,
-                        error: "_ParseResponse expected single class declaration";
+                        error: "CanopyClient:ParseResponse expected single class declaration"
                     }
                 }
                 i++;
