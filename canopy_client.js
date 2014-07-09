@@ -1,20 +1,53 @@
+function CanopyProperty()
+{
+    this.isBasicClass = function() {
+        return propertyType == "class" && compositeType == "basic";
+    }
 
-function CanopyPropertyList() {
+    this.isBasicControl = function() {
+        return propertyType == "control" && compositeType == "basic";
+    }
+
+    this.isBasicSensor = function() {
+        return propertyType == "sensor" && compositeType == "basic";
+    }
+
+    this.isClassArray = function() {
+        return propertyType == "class" && compositeType == "fixed-array";
+    }
+
+    this.isControlArray = function() {
+        return propertyType == "control" && compositeType == "fixed-array";
+    }
+
+    this.isSensorArray = function() {
+        return propertyType == "sensor" && compositeType == "fixed-array";
+    }
+
+    this.isClassMap = function() {
+        return propertyType == "class" && compositeType == "map";
+    }
+
+    this.isControlMap = function() {
+        return propertyType == "control" && compositeType == "map";
+    }
+
+    this.isSensorMap = function() {
+        return propertyType == "sensor" && compositeType == "map";
+    }
 }
 
-CanopyPropertyList.prototype.length = function()
+function CanopyDevice()
 {
-    return this.numItems;
-}
+    this.childClass = this.sddlClass.childClass;
+    this.control = this.sddlClass.control;
+    this.sensor = this.sddlClass.sensor;
+    this.property = this.sddlClass.property;
 
-CanopyPropertyList.prototype.keys = function()
-{
-    /* TODO */
-}
-
-CanopyPropertyList.prototype.keys = function()
-{
-    /* TODO */
+    this.childClasses = this.sddlClass.childClasses;
+    this.control = this.sddlClass.control;
+    this.sensor = this.sddlClass.sensor;
+    this.property = this.sddlClass.property;
 }
 
 function SDDLClass(initObj) {
