@@ -1,15 +1,44 @@
 function SDDLParser() {
+
+    /*
+     * <decl> is a property declaration string, such as "sensor cpu[8]"
+     * returns
+     *  {
+     *      "propertyType": "control" | "sensor" | "class" | "unknown",
+     *      "compositeType": "single" | "array" | "map",
+     *      "name": string
+     *  }
+     */
+    function DeclInfo(decl) {
+        var parts = decl.split(" ");
+        if (parts.length != 2) {
+            return {
+                propertyType: "unknown",
+                compositeType: "unknown",
+                name: "",
+            }
+        }
+
+        /* TODO: array & map handling */
+        /* TODO: input validation */
+        return {
+            propertyType: parts[0],
+            compositeType: "single",
+            name: parts[1],
+        }
+    }
+
     function SDDLPropertyBase()
     {
-        this.isBasicClass = function() {
+        this.isClass = function() {
             return this.propertyType() == "class" && this.compositeType() == "single";
         }
 
-        this.isBasicControl = function() {
+        this.isControl = function() {
             return this.propertyType() == "control" && this.compositeType() == "single";
         }
 
-        this.isBasicSensor = function() {
+        this.isSensor = function() {
             return this.propertyType() == "sensor" && this.compositeType() == "single";
         }
 
@@ -46,7 +75,7 @@ function SDDLParser() {
      *      .name : name of this property
      */
     function SDDLClass(params) {
-        $.extend(this, new CanopyPropertyBase());
+        $.extend(this, new SDDLPropertyBase());
 
         this.authors = function() {
             return params.authors;
@@ -112,6 +141,26 @@ function SDDLParser() {
             return propName;
         }
 
+        this.property = function(name) {
+            return this.properties()[name];
+        }
+
+        this.properties = function() {
+            var out = {};
+            for (var i = 0; i < params.children.length; i++) {
+                out[params.children[i].name()] = params.children[i];
+            }
+            return out;
+        }
+
+        this.propertyList = function() {
+            var out = [];
+            for (var i = 0; i < params.children.length; i++) {
+                out.push(params.children[i]);
+            }
+            return out;
+        }
+
         this.propertyType = function() {
             return "class";
         }
@@ -154,55 +203,18 @@ function SDDLParser() {
      *      .units
      */
     function SDDLControl(params) {
-        this.name = function() {
-            return params.name;
-        }
+        $.extend(this, new SDDLPropertyBase());
 
-        this.controlType = function() {
-            return params.controlType;
-        }
-
-        this.datatype = function() {
-            return params.datatype;
-        }
-
-        this.minValue = function() {
-            return params.minValue;
-        }
-
-        this.maxValue = function() {
-            return params.maxValue;
-        }
-
-        this.numericDisplayHint = function() {
-            return params.numericDisplayHint;
-        }
-
-        this.regex = function() {
-            return params.regex;
-        }
-        this.units = function() {
-            return params.units;
-        }
-    }
-
-    /*
-     * <params>
-     *      .datatype
-     *      .name
-     *      .minValue
-     *      .maxValue
-     *      .numericDisplayHint
-     *      .regex
-     *      .units
-     */
-    function SDDLSensor(params) {
         this.name = function() {
             return params.name;
         }
 
         this.compositeType = function() {
             return "single";
+        }
+
+        this.controlType = function() {
+            return params.controlType;
         }
 
         this.datatype = function() {
@@ -228,6 +240,55 @@ function SDDLParser() {
         this.regex = function() {
             return params.regex;
         }
+        this.units = function() {
+            return params.units;
+        }
+    }
+
+    /*
+     * <params>
+     *      .datatype
+     *      .name
+     *      .minValue
+     *      .maxValue
+     *      .numericDisplayHint
+     *      .regex
+     *      .units
+     */
+    function SDDLSensor(params) {
+        $.extend(this, new SDDLPropertyBase());
+
+        this.name = function() {
+            return params.name;
+        }
+
+        this.compositeType = function() {
+            return "single";
+        }
+
+        this.datatype = function() {
+            return params.datatype;
+        }
+
+        this.minValue = function() {
+            return params.minValue;
+        }
+
+        this.maxValue = function() {
+            return params.maxValue;
+        }
+
+        this.numericDisplayHint = function() {
+            return params.numericDisplayHint;
+        }
+
+        this.propertyType = function() {
+            return "sensor";
+        }
+
+        this.regex = function() {
+            return params.regex;
+        }
 
         this.units = function() {
             return params.units;
@@ -246,7 +307,7 @@ function SDDLParser() {
             units: "",
         }
 
-        var info = _DeclInfo(decl);
+        var info = DeclInfo(decl);
 
         if (info.propertyType != "control") {
             return {
@@ -261,6 +322,8 @@ function SDDLParser() {
                 error: "SDDLParser:ParseControl expected single control, not array or map"
             };
         }
+
+        params.name = info.name;
 
         for (key in def) {
             if (def.hasOwnProperty[key]) {
@@ -356,7 +419,7 @@ function SDDLParser() {
             units: "",
         }
 
-        var info = _DeclInfo(decl);
+        var info = DeclInfo(decl);
 
         if (info.propertyType != "sensor") {
             return {
@@ -371,6 +434,8 @@ function SDDLParser() {
                 error: "SDDLParser:ParseSensor expected single sensor, not array or map"
             };
         }
+
+        params.name = info.name;
 
         for (key in def) {
             if (def.hasOwnProperty[key]) {
@@ -454,13 +519,13 @@ function SDDLParser() {
      *      error: string or null
      *  }
      */
-    function ParseClass(decl, def) {
+    this.ParseClass = function(decl, def) {
         var params = {
             authors: [],
             children : [],
             description: ""
         }
-        var info = _DeclInfo(decl);
+        var info = DeclInfo(decl);
         var result;
 
         if (info.propertyType != "class") {
@@ -477,8 +542,10 @@ function SDDLParser() {
             };
         }
 
+        params.name = info.name;
+
         for (key in def) {
-            if (def.hasOwnProperty[key]) {
+            if (def.hasOwnProperty(key)) {
                 if (key == "authors") {
                     if (!_IsListOfStrings(def[key])) {
                         return {
@@ -498,23 +565,23 @@ function SDDLParser() {
                     params.description = description;
                 }
                 else {
-                    var propDeclInfo = _DeclInfo(key);
+                    var propDeclInfo = DeclInfo(key);
                     if (propDeclInfo.propertyType == "class") {
-                        result = _SDDLParseClass(key, def[key]);
+                        result = ParseClass(key, def[key]);
                         if (result.error != null) {
                             return result;
                         }
                         params.children.push(result.sddl);
                     }
                     else if (propDeclInfo.propertyType == "control") {
-                        result = _SDDLParseControl(key, def[key]);
+                        result = ParseControl(key, def[key]);
                         if (result.error != null) {
                             return result;
                         }
                         params.children.push(result.sddl);
                     }
                     else if (propDeclInfo.propertyType == "sensor") {
-                        result = _SDDLParseSensor(key, def[key]);
+                        result = ParseSensor(key, def[key]);
                         if (result.error != null) {
                             return result;
                         }
@@ -647,18 +714,28 @@ function CanopyClient(origSettings) {
             crossDomain: true
         })
         .done(function(data, textStatus, jqXHR) {
-            if (params.onSuccess) {
+            if (data['result'] == "ok") {
                 var acct = new CanopyAccount({
                     username: data['username'],
                     email: data['email']
                 });
-                params.onSuccess(acct);
+                if (params.onSuccess)
+                    params.onSuccess(acct);
+            } else {
+                if (data['error_type']) {
+                    if (params.onError)
+                        params.onError(data['error_type']);
+                }
+                else {
+                    if (params.onError)
+                        params.onError("unknown");
+                }
             }
         })
-        .fail(function() {
-            /* TODO: not_logged_in error */
-            if (onError != null)
-                onError("unknown");
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            /* TODO: determine error */
+            if (params.onError)
+                params.onError("unknown");
         });
     }
 
@@ -676,11 +753,11 @@ function CanopyClient(origSettings) {
             crossDomain: true
         })
         .done(function(data, textStatus, jqXHR) {
-            var acct = new CanopyAccount({
-                username: data['username'],
-                email: data['email']
-            });
-            if (data['success'] === true) {
+            if (data['result'] == "ok") {
+                var acct = new CanopyAccount({
+                    username: data['username'],
+                    email: data['email']
+                });
                 if (params.onSuccess)
                     params.onSuccess(acct);
             }
@@ -715,6 +792,42 @@ function CanopyClient(origSettings) {
         });
     }
 
+    /*
+     * <devices> is list of CanopyDevice objects.
+     */
+    function CanopyDeviceList(devices) {
+
+        this.filter = function(options) {
+            filteredDevices = [];
+            if (options['connected'] === true) {
+                for (i = 0; i < devices.length; i++) {
+                    if (devices[i].isConnected()) {
+                        filteredDevices.push(devices[i]);
+                    }
+                }
+                return new CanopyDeviceList(filteredDevices);
+            }
+            else if (options['connected'] === false) {
+                for (i = 0; i < devices.length; i++) {
+                    if (!devices[i].isConnected()) {
+                        filteredDevices.push(devices[i]);
+                    }
+                }
+                return new CanopyDeviceList(filteredDevices);
+            }
+        }
+
+        this.count = function(options) {
+            return this.filter(options).length;
+        }
+
+        /* simulate array */
+        this.length = devices.length;
+        for (var i = 0; i < devices.length; i++) {
+            this[i] = devices[i];
+        }
+    }
+
     /* 
      * CanopyAccount
      *
@@ -744,14 +857,14 @@ function CanopyClient(origSettings) {
             .done(function(data, textStatus, jqXHR) {
                 /* construct CanopyDevice objects */
                 var devices = [];
-                for (var i = 0; i < data.devices.length(); i++) {
-                    devices.push(new Device(data.devices[i]));
+                for (var i = 0; i < data.devices.length; i++) {
+                    devices.push(new CanopyDevice(data.devices[i]));
                 }
-                if (params.onSuccess != null)
-                    params.onSuccess(devices);
+                if (params.onSuccess)
+                    params.onSuccess(new CanopyDeviceList(devices));
             })
             .fail(function() {
-                if (params.onError != null)
+                if (params.onError)
                     params.onError("unknown");
             });
         }
@@ -764,8 +877,16 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyDevice(initObj) {
+        var props = ParseResponse(initObj.sddl_class, initObj.property_values);
+        if (props.error != null) {
+            console.log(props.error);
+        }
+        props = props.instance;
 
-        this.childClass = this.sddlClass.childClass;
+
+        this.controlList = props.controlList;
+        this.sensorList = props.sensorList;
+        /*this.childClass = this.sddlClass.childClass;
         this.control = this.sddlClass.control;
         this.sensor = this.sddlClass.sensor;
         this.property = this.sddlClass.property;
@@ -773,7 +894,11 @@ function CanopyClient(origSettings) {
         this.childClasses = this.sddlClass.childClasses;
         this.control = this.sddlClass.control;
         this.sensor = this.sddlClass.sensor;
-        this.property = this.sddlClass.property;
+        this.property = this.sddlClass.property;*/
+
+        this.properties = function() {
+            return props;
+        }
 
         this.id = function() {
             return initObj.device_id;
@@ -801,6 +926,49 @@ function CanopyClient(origSettings) {
         }
 
         this.setPermissions = function(params) {
+        }
+
+        this.isConnected = function() {
+            return initObj.connected;
+        }
+    }
+
+    function CanopyPropertyInstanceBase()
+    {
+        this.iscClass = function() {
+            return this.propertyType() == "class" && this.compositeType() == "single";
+        }
+
+        this.isControl = function() {
+            return this.propertyType() == "control" && this.compositeType() == "single";
+        }
+
+        this.isSensor = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "single";
+        }
+
+        this.isClassArray = function() {
+            return this.propertyType() == "class" && this.compositeType() == "fixed-array";
+        }
+
+        this.isControlArray = function() {
+            return this.propertyType() == "control" && this.compositeType() == "fixed-array";
+        }
+
+        this.isSensorArray = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "fixed-array";
+        }
+
+        this.isClassMap = function() {
+            return this.propertyType() == "class" && this.compositeType() == "map";
+        }
+
+        this.isControlMap = function() {
+            return this.propertyType() == "control" && this.compositeType() == "map";
+        }
+
+        this.isSensorMap = function() {
+            return this.propertyType() == "sensor" && this.compositeType() == "map";
         }
     }
 
@@ -906,15 +1074,17 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyControlInstance(sddlControl, propValue) {
-        this.name = sddlSensor.name;
-        this.compositeType = sddlSensor.compositeType;
-        this.datatype = sddlSensor.datatype;
-        this.minValue = sddlSensor.minValue;
-        this.maxValue = sddlSensor.maxValue;
-        this.numericDisplayHint = sddlSensor.numericDisplayHint;
-        this.propertyType = sddlSensor.propertyType;
-        this.regex = sddlSensor.regex;
-        this.units = sddlSensor.units;
+        $.extend(this, new CanopyPropertyInstanceBase());
+
+        this.name = sddlControl.name;
+        this.compositeType = sddlControl.compositeType;
+        this.datatype = sddlControl.datatype;
+        this.minValue = sddlControl.minValue;
+        this.maxValue = sddlControl.maxValue;
+        this.numericDisplayHint = sddlControl.numericDisplayHint;
+        this.propertyType = sddlControl.propertyType;
+        this.regex = sddlControl.regex;
+        this.units = sddlControl.units;
 
         this.value = function(){
             return propValue;
@@ -935,6 +1105,8 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopySensorInstance(sddlSensor, propValue) {
+        $.extend(this, new CanopyPropertyInstanceBase());
+
         this.name = sddlSensor.name;
         this.compositeType = sddlSensor.compositeType;
         this.datatype = sddlSensor.datatype;
@@ -1002,7 +1174,10 @@ function CanopyClient(origSettings) {
         }
 
         return {
-            instance: new CanopyClassInstance(sddl, children),
+            instance: new CanopyClassInstance( {
+                sddl: sddl,
+                children: children
+            }),
             error: null
         }
     }
@@ -1039,29 +1214,16 @@ function CanopyClient(origSettings) {
      * ParseResponse
      * Returns {instance: CanopyClassInstance or null, error: null or string}
      */
-    function ParseResponse(sddlJsonObj, valuesJsonObj)
-    {
+    function ParseResponse(sddlJsonObj, valuesJsonObj) {
         var i = 0;
         var result = null;
-        for (key in sddl) {
-            if (sddl.hasOwnProperty(key)) {
-                if (i == 0) {
-                    result = _SDDLParseClass(def, decl);
-                    if (result.error != null) {
-                        return result;
-                    }
-                }
-                else {
-                    return {
-                        instance: null,
-                        error: "CanopyClient:ParseResponse expected single class declaration"
-                    }
-                }
-                i++;
-            }
+
+        result = sddlParser.ParseClass("class anon", sddlJsonObj);
+        if (result.error != null) {
+            return result;
         }
 
-        result = _CreateClassInstance(result.sddl, values);
+        result = CreateClassInstance(result.sddl, valuesJsonObj);
         return result;
     }
 
@@ -1269,3 +1431,18 @@ function CanopyClient(origSettings) {
     }
     return out;
 }*/
+
+/*
+Callbacks:
+
+    canopy.onLogin()
+    canopy.onLogout()
+
+    account.onDeviceAdded()
+    account.onDeviceRemoved()
+    account.onDeviceCountChange()
+
+    device.onConnect()
+    device.onDisconnect()
+    device.onUpdate()
+*/
