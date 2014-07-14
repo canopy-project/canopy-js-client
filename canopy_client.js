@@ -698,6 +698,7 @@ function CanopyClient(origSettings) {
     this._fnReady = function() {};
     this._ready = false;
     this.account = null;
+    this.devices = null;
 
     var sddlParser = new SDDLParser();
 
@@ -754,8 +755,14 @@ function CanopyClient(origSettings) {
     /* Initialize */
     this.fetchAccount({
         onSuccess: function(account) {
+            account.fetchDevices({
+                onSuccess: function(deviceList) {
+                    self.devices = deviceList;
+                    self._ready = true;
+                    self._fnReady();
+                }
+            });
             self.account = account;
-            self._fnReady()
         },
         onError: function() {
             self.account = null;
@@ -840,6 +847,14 @@ function CanopyClient(origSettings) {
                 }
                 return new CanopyDeviceList(filteredDevices);
             }
+        }
+
+        this.connected = function() {
+            return this.filter({connected: true});
+        }
+
+        this.disconnected = function() {
+            return this.filter({connected: false});
         }
 
         this.count = function(options) {

@@ -21,6 +21,13 @@ canopy.onReady(function() {
             password: "demo",
         })
     }
+
+    var numDevices = canopy.devices.length;
+    var numOnline = canopy.devices.connected().length;
+    var numOffline = canopy.devices.disconnected().length;
+    alert(numDevices);
+    alert(numOnline);
+    alert(numOffline);
 });
 
     </script>
