@@ -690,17 +690,29 @@ function CanopyClient(origSettings) {
         cloudHost : "canopy.link",
         cloudHTTPPort : 80,
         cloudHTTPSPort : 433,
-        cloudUseHTTPS : false
+        cloudUseHTTPS : false,
+        cloudUrlPrefix : ""
     }, origSettings);
 
     var self = this;
+    this._fnReady = function() {};
+    this._ready = false;
+    this.account = null;
 
     var sddlParser = new SDDLParser();
 
     this.apiBaseUrl = function() {
         return (settings.cloudUseHTTPS ? "https://" : "http://") +
             settings.cloudHost + ":" +
-            (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort)
+            (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort) +
+            settings.cloudUrlPrefix;
+    }
+
+    this.onReady = function(callback) {
+        this._fnReady = callback;
+        if (self._ready === true) {
+            callback();
+        }
     }
 
     this.fetchAccount = function(params) {
@@ -738,6 +750,19 @@ function CanopyClient(origSettings) {
                 params.onError("unknown");
         });
     }
+
+    /* Initialize */
+    this.fetchAccount({
+        onSuccess: function(account) {
+            self.account = account;
+            self._fnReady()
+        },
+        onError: function() {
+            self.account = null;
+            self._ready = true;
+            self._fnReady();
+        },
+    });
 
     this.login = function(params) {
         /* TODO: proper error handlilng */

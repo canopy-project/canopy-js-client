@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="canopy_client.js"></script>
+    <script>
+var canopy = new CanopyClient({
+    cloudHost: "canopy.link",
+    cloudHTTPPort: 8080,
+    cloudUseHTTPS: false,
+});
+
+canopy.onReady(function() {
+    if (canopy.account) {
+        alert("Hello " + canopy.account.username());
+    }
+    else {
+        canopy.login(
+        {
+            username: "demo",
+            password: "demo",
+        })
+    }
+});
+
+    </script>
+</head>
+<body>
+</body>
+</html>
