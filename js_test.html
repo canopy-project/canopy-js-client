@@ -25,9 +25,10 @@ canopy.onReady(function() {
     var numDevices = canopy.devices.length;
     var numOnline = canopy.devices.connected().length;
     var numOffline = canopy.devices.disconnected().length;
-    alert(numDevices);
-    alert(numOnline);
-    alert(numOffline);
+    alert("You have access to " + numDevices + " devices, of which " + numOnline + " are online");
+
+    var firstDevice = canopy.devices[0];
+    var mySmartFan = canopy.devices["d59e4703-ed10-11e3-a241-74d02b36a289"];
 });
 
     </script>

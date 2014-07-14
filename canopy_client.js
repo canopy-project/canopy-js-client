@@ -866,6 +866,11 @@ function CanopyClient(origSettings) {
         for (var i = 0; i < devices.length; i++) {
             this[i] = devices[i];
         }
+
+        /* simulate map */
+        for (var i = 0; i < devices.length; i++) {
+            this[devices[i].id()] = devices[i];
+        }
     }
 
     /* 
