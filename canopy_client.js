@@ -1248,26 +1248,6 @@ function CanopyClient(origSettings) {
         });
     }*/
 
-    /*this.fetchDevices = function(onSuccess, onError) {
-        $.ajax({
-            type: "GET",
-            dataType : "json",
-            url: self.apiBaseUrl() + "/devices",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            if (onSuccess != null)
-                onSuccess(data.devices);
-        })
-        .fail(function() {
-            if (onError != null)
-                onError();
-        });
-    }*/
-
     /*this.fetchSensorData = function(deviceId, sensorName, onSuccess, onError) {
         $.ajax({
             type: "GET",
@@ -1356,83 +1336,6 @@ function CanopyClient(origSettings) {
 }
 
 /*
-    {
-        "devices" : [
-            {
-                "device_id" : UUID,
-                "friendly_name" : "mydevice",
-                "device_class" : {
-                    "canopy.tutorial.sample_device_1" : {
-                        "cpu" : {
-                            "category" : "sensor",
-                            "datatype" : "float32",
-                            "min_value" : 0.0,
-                            "max_value" : 1.0,
-                            "description" : "CPU usage percentage"
-                        },
-                        "reboot" : {
-                            "category" : "control",
-                            "control_type" : "trigger",
-                            "datatype" : "boolean",
-                            "description" : "Reboots the device"
-                        }
-                    }
-                }
-            }
-        ]
-    }
-*/
-
-/* 
- * returns list: [#TOTAL, #CONNECTED, #OFFLINE]
- */
-/*function CanopyUtil_DeviceCounts(deviceObjs) {
-    var numDevices = deviceObjs.length;
-    var out = [numDevices, 0, 0];
-    for (var i = 0; i < numDevices; i++) {
-        if (deviceObjs[i].connected) {
-            out[1]++;
-        }
-        else {
-            out[2]++;
-        }
-    }
-    return out;
-}*/
-
-/*
- * Returns object: {<control_name> : <definition>}
- */
-/*function CanopyUtil_GetDeviceControls(deviceObj) {
-    var cls = deviceObj.sddl_class;
-    var out = {};
-    for (var propDecl in cls) {
-        if (propDecl.substring(0, 8) == "control ") {
-            var controlName = propDecl.substring(8);
-            out[controlName] = cls[propDecl];
-            out[controlName]._value = deviceObj.property_values["control " + controlName].v;
-        }
-    }
-    return out;
-}*/
-
-/*
- * Returns object: {<sensor_name> : <definition>}
- */
-/*function CanopyUtil_GetDeviceSensors(deviceObj) {
-    var cls = deviceObj.sddl_class;
-    var out = {};
-    for (var propDecl in cls) {
-        if (propDecl.substring(0, 7) == "sensor ") {
-            var sensorName = propDecl.substring(7);
-            out[sensorName] = cls[propDecl];
-            out[sensorName]._value = deviceObj.property_values["sensor " + sensorName].v;
-        }
-    }
-    return out;
-}*/
-
-/*
 Callbacks:
 
     canopy.onLogin()
@@ -1445,4 +1348,49 @@ Callbacks:
     device.onConnect()
     device.onDisconnect()
     device.onUpdate()
+
+
+
+canopy - CanopyClient
+
+canopy.accounts -- CanopyAccountList
+canopy.accounts["greg"] -- Specific CanopyAccount
+canopy.me -- Currently-signed in CanopyAccount
+
+canopy.devices, canopy.me.devices -- CanopyDeviceList
+canopy.devices["abf98a0d8f0a-d7f08a-d78f9s0"]
+canopy.devices.filter({connected:true});
+canopy.devices[0]
+
+canopy.devices[0].properties.darkness.value()
+device.properties.gps  <-- CanopyClassInstance
+for (i = 0; i < device.properties.gps.__sensors().__length(); i++) {
+    device.properties.gps[i].name();
+}
+canopy.devices[0].
+
+
+Callbacks:
+
+    canopy.onReady(function() {
+    })
+
+    canopy.onRefresh(function() {
+        if (!canopy.isLoggedIn()) {
+        }
+    })
+
+    canopy.onDeviceAdded(function() {
+    })
+
+    canopy.onLogout(function(reason)) {
+    }
+
+    canopy.onLogin(function(reason)) {
+    }
+
+    var device = canopy.devices.connected()[0];
+    device.onConnectionStatusChange();
+    device.onRefresh();
+    device.onRemoved();
 */
