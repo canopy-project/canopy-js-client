@@ -695,7 +695,9 @@ function CanopyClient(origSettings) {
     }, origSettings);
 
     var self = this;
-    this._fnReady = function() {};
+    this._fnReady = [];
+    this._fnLogin = [];
+    this._fnLogout = [];
     this._ready = false;
     this.account = null;
     this.devices = null;
@@ -707,6 +709,22 @@ function CanopyClient(origSettings) {
             settings.cloudHost + ":" +
             (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort) +
             settings.cloudUrlPrefix;
+    }
+
+    this.onLogin = function(callback) {
+        this._fnLogin.push(callback);
+    }
+
+    this.onLogout = function(callback) {
+        this._fnLogout.push(callback);
+    }
+
+    this.onDeviceAdded = function(callback) {
+        this._fnDeviceAdded.push(callback);
+    }
+
+    this.onRefresh = function(callback) {
+        this._fnRefresh.push(callback);
     }
 
     this.onReady = function(callback) {
@@ -798,9 +816,24 @@ function CanopyClient(origSettings) {
                     params.onError("unknown");
             }
         })
-        .fail(function() {
-            if (params.onError)
-                params.onError("unknown");
+        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
+            if (!XMLHttpRequest.responseText) {
+                if (params.onError)
+                    params.onError("unknown");
+                return;
+            }
+            var data = JSON.parse(XMLHttpRequest.responseText);
+            console.log(data);
+            console.log(data['result']);
+            console.log(data['error_type']);
+            if (data['result'] == "error") {
+                if (params.onError)
+                    params.onError(data['error_type']);
+            }
+            else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
         });
     }
 
@@ -922,28 +955,13 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyDevice(initObj) {
-        var props = ParseResponse(initObj.sddl_class, initObj.property_values);
-        if (props.error != null) {
-            console.log(props.error);
+        var result = ParseResponse(initObj.sddl_class, initObj.property_values);
+        if (result.error != null) {
+            console.log(result.error);
         }
-        props = props.instance;
+        var classInstance = result.instance;
 
-
-        this.controlList = props.controlList;
-        this.sensorList = props.sensorList;
-        /*this.childClass = this.sddlClass.childClass;
-        this.control = this.sddlClass.control;
-        this.sensor = this.sddlClass.sensor;
-        this.property = this.sddlClass.property;
-
-        this.childClasses = this.sddlClass.childClasses;
-        this.control = this.sddlClass.control;
-        this.sensor = this.sddlClass.sensor;
-        this.property = this.sddlClass.property;*/
-
-        this.properties = function() {
-            return props;
-        }
+        this.properties = classInstance.properties;
 
         this.id = function() {
             return initObj.device_id;
@@ -978,9 +996,25 @@ function CanopyClient(origSettings) {
         }
     }
 
+    /*
+     * Properties is list of CanopyPropertyInstance objects
+     */
+    function CanopyPropertyList(properties) {
+        /* simulate array */
+        this.__length = properties.length;
+        for (var i = 0; i < properties.length; i++) {
+            this[i] = properties[i];
+        }
+
+        /* simulate map */
+        for (var i = 0; i < properties.length; i++) {
+            this[properties[i].name()] = properties[i];
+        }
+    }
+
     function CanopyPropertyInstanceBase()
     {
-        this.iscClass = function() {
+        this.isClass = function() {
             return this.propertyType() == "class" && this.compositeType() == "single";
         }
 
@@ -1031,54 +1065,6 @@ function CanopyClient(origSettings) {
         this.description = params.sddl.description;
         this.name = params.sddl.name;
 
-        this.childClass = function(name) {
-            return this.childClasses()[name];
-        }
-
-        this.childClasses = function() {
-            var out = {};
-            for (var i = 0; i < params.children.length; i++) {
-                if (params.children[i].isClass()) {
-                    out[params.children[i].name()] = params.children[i];
-                }
-            }
-            return out;
-        }
-
-        this.childClassList = function() {
-            var out = [];
-            for (var i = 0; i < params.children.length; i++) {
-                if (params.children[i].isClass()) {
-                    out.push(params.children[i]);
-                }
-            }
-            return out;
-        }
-
-        this.control = function(name) {
-            return this.controls()[name];
-        }
-
-        this.controls = function() {
-            var out = {};
-            for (var i = 0; i < params.children.length; i++) {
-                if (params.children[i].isControl()) {
-                    out[params.children[i].name()] = params.children[i];
-                }
-            }
-            return out;
-        }
-
-        this.controlList = function() {
-            var out = [];
-            for (var i = 0; i < params.children.length; i++) {
-                if (params.children[i].isControl()) {
-                    out.push(params.children[i]);
-                }
-            }
-            return out;
-        }
-
         this.compositeType = function() {
             return "single";
         }
@@ -1087,29 +1073,7 @@ function CanopyClient(origSettings) {
             return "class";
         }
 
-        this.sensor = function(name) {
-            return this.sensors()[name];
-        }
-
-        this.sensors = function() {
-            var out = {};
-            for (var i = 0; i < _properties.length; i++) {
-                if (params.children[i].isSensor()) {
-                    out[params.children[i].name()] = params.children[i];
-                }
-            }
-            return out;
-        }
-
-        this.sensorList = function() {
-            var out = [];
-            for (var i = 0; i < params.children.length; i++) {
-                if (params.children[i].isSensor()) {
-                    out.push(params.children[i]);
-                }
-            }
-            return out;
-        }
+        this.properties = new CanopyPropertyList(params.children);
     }
 
     /*

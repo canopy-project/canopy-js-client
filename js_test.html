@@ -12,7 +12,6 @@ var canopy = new CanopyClient({
 
 canopy.onReady(function() {
     if (canopy.account) {
-        alert("Hello " + canopy.account.username());
     }
     else {
         canopy.login(
@@ -25,14 +24,41 @@ canopy.onReady(function() {
     var numDevices = canopy.devices.length;
     var numOnline = canopy.devices.connected().length;
     var numOffline = canopy.devices.disconnected().length;
-    alert("You have access to " + numDevices + " devices, of which " + numOnline + " are online");
 
     var firstDevice = canopy.devices[0];
     var mySmartFan = canopy.devices["d59e4703-ed10-11e3-a241-74d02b36a289"];
+    alert(mySmartFan.properties.humidity.datatype());
+
+    var out = "";
+
+    // loop over all devices
+    for (var i = 0; i < canopy.devices.length; i++) {
+        var device = canopy.devices[i];
+
+        out += device.friendlyName() + " has the following properties: <br>";
+
+        // loop over all properties that this device has:
+        for (var j = 0; j < device.properties.__length; j++) {
+            var prop = device.properties[j];
+
+            if (prop.isControl()) {
+                out += prop.name() + " is a control with datatype " + prop.datatype() + "<BR>";
+            }
+            else if (prop.isSensor()) {
+                out += prop.name() + " is a sensor with datatype " + prop.datatype() + "<BR>";
+            }
+            else if (prop.isClass()) {
+                out += prop.name() + " is a child class with " + prop.properties.__length + " properties<BR>";
+            }
+        }
+    }
+
+    jQuery("#main").append(out);
 });
 
     </script>
 </head>
 <body>
+<div id=main></div>
 </body>
 </html>
