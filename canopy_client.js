@@ -811,8 +811,6 @@ function CanopyClient(origSettings) {
                 acct.fetchDevices({
                     onSuccess: function(deviceList) {
                         self.devices = deviceList;
-                        self._ready = true;
-                        self._fnReady();
                         if (params.onSuccess)
                             params.onSuccess(acct);
                     },
