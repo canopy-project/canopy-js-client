@@ -808,8 +808,20 @@ function CanopyClient(origSettings) {
                     username: data['username'],
                     email: data['email']
                 });
-                if (params.onSuccess)
-                    params.onSuccess(acct);
+                acct.fetchDevices({
+                    onSuccess: function(deviceList) {
+                        self.devices = deviceList;
+                        self._ready = true;
+                        self._fnReady();
+                        if (params.onSuccess)
+                            params.onSuccess(acct);
+                    },
+                    onError: function() {
+                        if (params.onError)
+                            params.onError("unknown");
+                    }
+                });
+                self.account = acct;
             }
             else {
                 if (params.onError)
