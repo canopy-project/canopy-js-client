@@ -295,6 +295,41 @@ function SDDLParser() {
         }
     }
 
+    function _IsValidDatatype(x) {
+        var validDataypes = {
+            "null" : 1,
+            "bool" : 1,
+            "int8" : 1,
+            "uint8" : 1,
+            "int16" : 1,
+            "uint16" : 1,
+            "int32" : 1,
+            "uint32" : 1,
+            "float32" : 1,
+            "float64" : 1,
+            "datetime" : 1
+        };
+        return validDataypes[x] !== undefined;
+    }
+
+    function _IsValidNumericDisplayHint(x) {
+        var validValues = {
+            "normal" : 1,
+            "percentage" : 1,
+            "scientific" : 1,
+            "hex" : 1
+        };
+        return validValues[x] !== undefined;
+    }
+
+    function _IsNumberOrNull(x) {
+        return (typeof x === "number" || x === null);
+    }
+
+    function _IsString(x) {
+        return typeof x === "string";
+    }
+
     function ParseControl(decl, def) {
         var params = {
             controlType: "paramter",
@@ -326,7 +361,7 @@ function SDDLParser() {
         params.name = info.name;
 
         for (key in def) {
-            if (def.hasOwnProperty[key]) {
+            if (def.hasOwnProperty(key)) {
                 if (key == "control-type") {
                     if (!_IsValidControlType(def[key])) {
                         return {
@@ -438,22 +473,15 @@ function SDDLParser() {
         params.name = info.name;
 
         for (key in def) {
-            if (def.hasOwnProperty[key]) {
-                if (key == "control-type") {
-                    if (!_IsValidControlType(def[key])) {
-                        return {
-                            sddl: null, 
-                            error: "SDDLParser:ParseSensor: unsupported \"controlType\": " + def[key]
-                        };
-                    }
-                }
-                else if (key == "datatype") {
+            if (def.hasOwnProperty(key)) {
+                if (key == "datatype") {
                     if (!_IsValidDatatype(def[key])) {
                         return {
                             sddl: null, 
                             error: "SDDLParser:ParseSensor: unsupported \"controlType\": " + def[key]
                         };
                     }
+                    params.datatype = def[key];
                 }
                 else if (key == "description") {
                     if (!_IsString(def[key])) {
@@ -462,6 +490,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor expected string for \"description\""
                         };
                     }
+                    params.description = def[key];
                 }
                 else if (key == "max-value") {
                     if (!_IsNumberOrNull(def[key])) {
@@ -470,6 +499,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor exptected number or null for \"max-value\""
                         };
                     }
+                    params.maxValue = def[key];
                 }
                 else if (key == "min-value") {
                     if (!_IsNumberOrNull(def[key])) {
@@ -478,6 +508,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor exptected number or null for \"min-value\""
                         };
                     }
+                    params.minValue = def[key];
                 }
                 else if (key == "numeric-display-hint") {
                     if (!_IsValidNumericDisplayHint(def[key])) {
@@ -486,6 +517,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor: unsupported \"numeric-display-hint\"" + def[key]
                         };
                     }
+                    params.numericDisplayHint = def[key];
                 }
                 else if (key == "regex") {
                     if (!_IsValidRegex(def[key])) {
@@ -494,6 +526,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor: invalid value for \"regex\""
                         };
                     }
+                    params.regex = def[key];
                 }
                 else if (key == "units") {
                     if (!_IsString(def[key])) {
@@ -502,6 +535,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseSensor: invalid value for \"units\""
                         };
                     }
+                    params.units = def[key];
                 }
             }
         }
@@ -867,6 +901,32 @@ function CanopyClient(origSettings) {
         });
     }
 
+    this.share = function(params) {
+        $.ajax({
+            type: "POST",
+            dataType : "json",
+            url: self.apiBaseUrl() + "/share",
+            data: JSON.stringify( {
+                device_id : params.deviceId, 
+                email: params.recipient,
+                access_level: params.accessLevel,
+                sharing_level: params.shareLevel}),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function() {
+            if (params.onSuccess)
+                onSuccess();
+        })
+        .fail(function() {
+            if (params.onError)
+                onError();
+        });
+    }
+
+
     /*
      * <devices> is list of CanopyDevice objects.
      */
@@ -1166,9 +1226,6 @@ function CanopyClient(origSettings) {
             var v = null;
             var result;
 
-            if (values != null && values[props[i].name()])
-                v = values[props[i].name()];
-
             if (props[i].isClass()) {
                 result = CreateClassInstance(props[i], v);
                 if (result.error != null) {
@@ -1177,6 +1234,9 @@ function CanopyClient(origSettings) {
                 children.push(result.instance);
             }
             else if (props[i].isSensor()) {
+                if (values != null && values["sensor " + props[i].name()])
+                    v = values["sensor " + props[i].name()];
+
                 result = CreateSensorInstance(props[i], v);
                 if (result.error != null) {
                     return result;
@@ -1184,6 +1244,8 @@ function CanopyClient(origSettings) {
                 children.push(result.instance);
             }
             else if (props[i].isControl()) {
+                if (values != null && values["control " + props[i].name()])
+                    v = values["control " + props[i].name()];
                 result = CreateControlInstance(props[i], v);
                 if (result.error != null) {
                     return result;
@@ -1242,6 +1304,7 @@ function CanopyClient(origSettings) {
             return result;
         }
 
+        console.log(valuesJsonObj);
         result = CreateClassInstance(result.sddl, valuesJsonObj);
         return result;
     }
@@ -1295,29 +1358,6 @@ function CanopyClient(origSettings) {
             dataType : "json",
             url: self.apiBaseUrl() + "/device" + deviceId,
             data: JSON.stringify(obj),
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function() {
-            onSuccess();
-        })
-        .fail(function() {
-            onError();
-        });
-    }*/
-
-    /*this.share = function(deviceId, recipientEmail, accessLevel, shareLevel, onSuccess, onError) {
-        $.ajax({
-            type: "POST",
-            dataType : "json",
-            url: self.apiBaseUrl() + "/share",
-            data: JSON.stringify( {
-                device_id : deviceId, 
-                email: recipientEmail,
-                access_level: accessLevel,
-                sharing_level: shareLevel}),
             xhrFields: {
                  withCredentials: true
             },
