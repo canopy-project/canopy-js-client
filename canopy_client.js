@@ -918,11 +918,43 @@ function CanopyClient(origSettings) {
         })
         .done(function() {
             if (params.onSuccess)
-                onSuccess();
+                params.onSuccess();
         })
         .fail(function() {
             if (params.onError)
-                onError();
+                params.onError();
+        });
+    }
+
+    this.createAccount = function(params) {
+        $.ajax({
+            type: "POST",
+            dataType : "json",
+            url: self.apiBaseUrl() + "/create_account",
+            data: JSON.stringify({
+                username : params.username, 
+                email: params.email, 
+                password : params.password, 
+                password_confirm: params.passwordConfirm
+            }),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data) {
+            /* Initialize canopyClient object */
+            self.devices = new CanopyDeviceList([]);
+            self.account = new CanopyAccount({
+                username: params.username,
+                email: params.email
+            });
+            if (params.onSuccess != null)
+                params.onSuccess(self.account);
+        })
+        .fail(function() {
+            if (params.onError != null)
+                params.onError();
         });
     }
 
@@ -1308,27 +1340,6 @@ function CanopyClient(origSettings) {
         result = CreateClassInstance(result.sddl, valuesJsonObj);
         return result;
     }
-
-    /*this.createAccount = function(username, email, password, password_confirm, onSuccess, onError) {
-        $.ajax({
-            type: "POST",
-            dataType : "json",
-            url: self.apiBaseUrl() + "/create_account",
-            data: JSON.stringify({username : username, email: email, password : password, password_confirm: password_confirm}),
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function() {
-            if (onSuccess != null)
-                onSuccess();
-        })
-        .fail(function() {
-            if (onError != null)
-                onError();
-        });
-    }*/
 
     /*this.fetchSensorData = function(deviceId, sensorName, onSuccess, onError) {
         $.ajax({
