@@ -298,6 +298,7 @@ function SDDLParser() {
     function _IsValidDatatype(x) {
         var validDataypes = {
             "null" : 1,
+            "void" : 1,
             "bool" : 1,
             "int8" : 1,
             "uint8" : 1,
@@ -318,6 +319,14 @@ function SDDLParser() {
             "percentage" : 1,
             "scientific" : 1,
             "hex" : 1
+        };
+        return validValues[x] !== undefined;
+    }
+
+    function _IsValidControlType(x) {
+        var validValues = {
+            "trigger" : 1,
+            "parameter" : 1,
         };
         return validValues[x] !== undefined;
     }
@@ -1057,7 +1066,8 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyDevice(initObj) {
-        var result = ParseResponse(initObj.sddl_class, initObj.property_values);
+        var self=this;
+        var result = ParseResponse(self, initObj.sddl_class, initObj.property_values);
         if (result.error != null) {
             console.log(result.error);
         }
@@ -1078,9 +1088,6 @@ function CanopyClient(origSettings) {
         }
 
         this.beginControlTransaction = function() {
-        }
-
-        this.fetchHistoricData = function() {
         }
 
         /* Lists accounts who have permission to access this */
@@ -1184,11 +1191,12 @@ function CanopyClient(origSettings) {
      * This is a private "class" of CanopyClient to prevent the caller from
      * calling the constructor.
      */
-    function CanopyControlInstance(sddlControl, propValue) {
+    function CanopyControlInstance(device, sddlControl, propValue) {
         $.extend(this, new CanopyPropertyInstanceBase());
 
         this.name = sddlControl.name;
         this.compositeType = sddlControl.compositeType;
+        this.controlType = sddlControl.controlType;
         this.datatype = sddlControl.datatype;
         this.minValue = sddlControl.minValue;
         this.maxValue = sddlControl.maxValue;
@@ -1215,9 +1223,10 @@ function CanopyClient(origSettings) {
      * This is a private "class" of CanopyClient to prevent the caller from
      * calling the constructor.
      */
-    function CanopySensorInstance(sddlSensor, propValue) {
+    function CanopySensorInstance(device, sddlSensor, propValue) {
         $.extend(this, new CanopyPropertyInstanceBase());
 
+        this.device = device;
         this.name = sddlSensor.name;
         this.compositeType = sddlSensor.compositeType;
         this.datatype = sddlSensor.datatype;
@@ -1231,6 +1240,28 @@ function CanopyClient(origSettings) {
         this.value = function(){
             return propValue;
         };
+
+        this.fetchHistoricData = function(params) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: self.apiBaseUrl() + "/device/" + this.device.id() + "/" + this.name(),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function(data, textStatus, jqXHR) {
+                console.log("Done fetching");
+                console.log(params.onSuccess);
+                if (params.onSuccess)
+                    params.onSuccess(data);
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
+        }
 
         this.sddl = function() {
             return sddlSensor;
@@ -1250,7 +1281,7 @@ function CanopyClient(origSettings) {
      *      "speed" : 4
      *  }
      */
-    function CreateClassInstance(sddl, values) {
+    function CreateClassInstance(device, sddl, values) {
         var props = sddl.propertyList();
         var children = [];
         for (i = 0; i < props.length; i++) {
@@ -1259,7 +1290,7 @@ function CanopyClient(origSettings) {
             var result;
 
             if (props[i].isClass()) {
-                result = CreateClassInstance(props[i], v);
+                result = CreateClassInstance(device, props[i], v);
                 if (result.error != null) {
                     return result;
                 }
@@ -1269,7 +1300,7 @@ function CanopyClient(origSettings) {
                 if (values != null && values["sensor " + props[i].name()])
                     v = values["sensor " + props[i].name()];
 
-                result = CreateSensorInstance(props[i], v);
+                result = CreateSensorInstance(device, props[i], v);
                 if (result.error != null) {
                     return result;
                 }
@@ -1278,7 +1309,7 @@ function CanopyClient(origSettings) {
             else if (props[i].isControl()) {
                 if (values != null && values["control " + props[i].name()])
                     v = values["control " + props[i].name()];
-                result = CreateControlInstance(props[i], v);
+                result = CreateControlInstance(device, props[i], v);
                 if (result.error != null) {
                     return result;
                 }
@@ -1301,10 +1332,10 @@ function CanopyClient(origSettings) {
      *  <sddl> -- SDDLControl object
      *  <value> -- Last known control value, or null
      */
-    function CreateControlInstance(sddl, value) {
+    function CreateControlInstance(device, sddl, value) {
         /* TODO: verify validity of value */
         return {
-            instance: new CanopyControlInstance(sddl, value),
+            instance: new CanopyControlInstance(device, sddl, value),
             error: null
         }
     }
@@ -1315,10 +1346,10 @@ function CanopyClient(origSettings) {
      *  <sddl> -- SDDLControl object
      *  <value> -- Last known control value, or null
      */
-    function CreateSensorInstance(sddl, value) {
+    function CreateSensorInstance(device, sddl, value) {
         /* TODO: verify validity of value */
         return {
-            instance: new CanopySensorInstance(sddl, value),
+            instance: new CanopySensorInstance(device, sddl, value),
             error: null
         }
     }
@@ -1327,7 +1358,7 @@ function CanopyClient(origSettings) {
      * ParseResponse
      * Returns {instance: CanopyClassInstance or null, error: null or string}
      */
-    function ParseResponse(sddlJsonObj, valuesJsonObj) {
+    function ParseResponse(device, sddlJsonObj, valuesJsonObj) {
         var i = 0;
         var result = null;
 
@@ -1336,8 +1367,7 @@ function CanopyClient(origSettings) {
             return result;
         }
 
-        console.log(valuesJsonObj);
-        result = CreateClassInstance(result.sddl, valuesJsonObj);
+        result = CreateClassInstance(device, result.sddl, valuesJsonObj);
         return result;
     }
 
