@@ -738,6 +738,7 @@ function CanopyClient(origSettings) {
     }, origSettings);
 
     var self = this;
+    var selfClient = this;
     this._fnReady = [];
     this._fnLogin = [];
     this._fnLogout = [];
@@ -1192,6 +1193,8 @@ function CanopyClient(origSettings) {
      * calling the constructor.
      */
     function CanopyControlInstance(device, sddlControl, propValue) {
+        var self=this;
+
         $.extend(this, new CanopyPropertyInstanceBase());
 
         this.name = sddlControl.name;
@@ -1204,17 +1207,47 @@ function CanopyClient(origSettings) {
         this.propertyType = sddlControl.propertyType;
         this.regex = sddlControl.regex;
         this.units = sddlControl.units;
+        this._targetValue = propValue;
 
         this.value = function(){
             return propValue;
+        };
+
+        this.targetValue = function(){
+            return this._targetValue;
         };
 
         this.sddl = function() {
             return sddlSensor;
         }
 
-        this.setTargetValue = function() {
-            /* TODO: implement */
+        /*
+         *  params:
+         *      onSuccess
+         *      onError
+         */
+        this.setTargetValue = function(value, params) {
+            obj = {}
+            obj[self.name()] = value;
+            self._targetValue = value;
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                url: selfClient.apiBaseUrl() + "/device/" + device.id(),
+                data: JSON.stringify(obj),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function() {
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
         }
     }
     /*
