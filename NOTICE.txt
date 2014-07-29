@@ -1,0 +1,3 @@
+Canopy Javascript Application Client
+Copyright 2014 Gregory Prisament
+Licensed under the Apache License, Version 2.0

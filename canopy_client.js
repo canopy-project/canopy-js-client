@@ -1,3 +1,18 @@
+/*
+ * Copyright 2014 Gregory Prisament
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 function SDDLParser() {
 
     /*
@@ -838,6 +853,7 @@ function CanopyClient(origSettings) {
         /* TODO: response needs to include username & email */
         $.ajax({
             type: "POST",
+            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
             dataType : "json",
             url: self.apiBaseUrl() + "/login",
             data: JSON.stringify({username : params.username, password : params.password}),
@@ -1048,7 +1064,9 @@ function CanopyClient(origSettings) {
                 /* construct CanopyDevice objects */
                 var devices = [];
                 for (var i = 0; i < data.devices.length; i++) {
-                    devices.push(new CanopyDevice(data.devices[i]));
+                    var dev = new CanopyDevice(data.devices[i]);
+                    if (dev.friendlyName().substring(0, 10) != "FakeDevice") // HACK!
+                        devices.push(dev);
                 }
                 if (params.onSuccess)
                     params.onSuccess(new CanopyDeviceList(devices));
@@ -1084,8 +1102,44 @@ function CanopyClient(origSettings) {
             return initObj.friendly_name;
         }
 
+        this.locationNote = function() {
+            return initObj.location_note ? initObj.location_note : "Home";
+        }
+
         this.sddlClass = function() {
             return new SDDLClass(initObj.sddl_class);
+        }
+
+        /*
+         *  params:
+         *      friendlyName
+         *      locationNote
+         *      onSuccess
+         *      onError
+         */
+        this.setSettings = function(params) {
+            obj = {
+                __friendly_name: params.friendlyName,
+                __location_note: params.locationNote
+            };
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                url: selfClient.apiBaseUrl() + "/device/" + self.id(),
+                data: JSON.stringify(obj),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function() {
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
         }
 
         this.beginControlTransaction = function() {
