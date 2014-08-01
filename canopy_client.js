@@ -315,6 +315,7 @@ function SDDLParser() {
             "null" : 1,
             "void" : 1,
             "bool" : 1,
+            "string" : 1,
             "int8" : 1,
             "uint8" : 1,
             "int16" : 1,
@@ -356,7 +357,7 @@ function SDDLParser() {
 
     function ParseControl(decl, def) {
         var params = {
-            controlType: "paramter",
+            controlType: "parameter",
             datatype: "float32",
             description: "",
             maxValue: null,
@@ -390,7 +391,7 @@ function SDDLParser() {
                     if (!_IsValidControlType(def[key])) {
                         return {
                             sddl: null, 
-                            error: "SDDLParser:ParseControl: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseControl: unsupported \"control-type\": " + def[key]
                         };
                     }
                     params.controlType = def[key];
@@ -399,7 +400,7 @@ function SDDLParser() {
                     if (!_IsValidDatatype(def[key])) {
                         return {
                             sddl: null, 
-                            error: "SDDLParser:ParseControl: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseControl: unsupported \"datatype\": " + def[key]
                         };
                     }
                     params.datatype = def[key];
@@ -502,7 +503,7 @@ function SDDLParser() {
                     if (!_IsValidDatatype(def[key])) {
                         return {
                             sddl: null, 
-                            error: "SDDLParser:ParseSensor: unsupported \"controlType\": " + def[key]
+                            error: "SDDLParser:ParseSensor: unsupported \"datatype\": " + def[key]
                         };
                     }
                     params.datatype = def[key];
@@ -830,23 +831,29 @@ function CanopyClient(origSettings) {
     }
 
     /* Initialize */
-    this.fetchAccount({
-        onSuccess: function(account) {
-            account.fetchDevices({
-                onSuccess: function(deviceList) {
-                    self.devices = deviceList;
-                    self._ready = true;
-                    self._fnReady();
-                }
-            });
-            self.account = account;
-        },
-        onError: function() {
-            self.account = null;
-            self._ready = true;
-            self._fnReady();
-        },
-    });
+    if (settings.skipUserDataFetch !== true) {
+        this.fetchAccount({
+            onSuccess: function(account) {
+                account.fetchDevices({
+                    onSuccess: function(deviceList) {
+                        self.devices = deviceList;
+                        self._ready = true;
+                        self._fnReady();
+                    }
+                });
+                self.account = account;
+            },
+            onError: function() {
+                self.account = null;
+                self._ready = true;
+                self._fnReady();
+            },
+        });
+    }
+    else {
+        self.account = null;
+        self._ready = true;
+    }
 
     this.login = function(params) {
         /* TODO: proper error handlilng */
