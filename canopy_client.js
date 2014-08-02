@@ -355,6 +355,16 @@ function SDDLParser() {
         return typeof x === "string";
     }
 
+    function _IsListOfStrings(x) {
+        if (x.length === undefined)
+            return false;
+        for (var i = 0; i < x.length; i++) {
+            if (typeof x[i] !== "string")
+                return false;
+        }
+        return true;
+    }
+
     function ParseControl(decl, def) {
         var params = {
             controlType: "parameter",
@@ -612,7 +622,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseClass expected list of strings for \"authors\""
                         };
                     }
-                    params.authors = authors;
+                    params.authors = def[key];
                 }
                 else if (key == "description") {
                     if (!_IsString(def[key])) {
@@ -621,7 +631,7 @@ function SDDLParser() {
                             error: "SDDLParser:ParseClass expected string for \"description\""
                         }
                     }
-                    params.description = description;
+                    params.description = def[key];
                 }
                 else {
                     var propDeclInfo = DeclInfo(key);
