@@ -1401,8 +1401,8 @@ function CanopyClient(origSettings) {
                 children.push(result.instance);
             }
             else if (props[i].isSensor()) {
-                if (values != null && values["sensor " + props[i].name()])
-                    v = values["sensor " + props[i].name()];
+                if (values != null && values[props[i].name()])
+                    v = values[props[i].name()];
 
                 result = CreateSensorInstance(device, props[i], v);
                 if (result.error != null) {
@@ -1411,8 +1411,8 @@ function CanopyClient(origSettings) {
                 children.push(result.instance);
             }
             else if (props[i].isControl()) {
-                if (values != null && values["control " + props[i].name()])
-                    v = values["control " + props[i].name()];
+                if (values != null && values[props[i].name()])
+                    v = values[props[i].name()];
                 result = CreateControlInstance(device, props[i], v);
                 if (result.error != null) {
                     return result;
@@ -1452,6 +1452,7 @@ function CanopyClient(origSettings) {
      */
     function CreateSensorInstance(device, sddl, value) {
         /* TODO: verify validity of value */
+        console.log("Creating sensor instance: ", sddl.name(), value)
         return {
             instance: new CanopySensorInstance(device, sddl, value),
             error: null
