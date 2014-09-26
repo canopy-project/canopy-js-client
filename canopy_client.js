@@ -339,6 +339,11 @@ function SDDLParser() {
         return validValues[x] !== undefined;
     }
 
+    function _IsValidRegex(x) {
+        // TODO: implement
+        return true;
+    }
+
     function _IsValidControlType(x) {
         var validValues = {
             "trigger" : 1,
@@ -760,7 +765,7 @@ function CanopyClient(origSettings) {
         cloudHTTPPort : 80,
         cloudHTTPSPort : 433,
         cloudUseHTTPS : false,
-        cloudUrlPrefix : ""
+        cloudUrlPrefix : "/api"
     }, origSettings);
 
     var self = this;
@@ -779,6 +784,29 @@ function CanopyClient(origSettings) {
             settings.cloudHost + ":" +
             (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort) +
             settings.cloudUrlPrefix;
+    }
+
+    this.lookupAnonDevice = function(uuid, onSuccess, onFailure) {
+        $.ajax({
+            type: "GET",
+            dataType : "json",
+            url: self.apiBaseUrl() + "/device/" + uuid,
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            var dev = new CanopyDevice(data);
+            if (onSuccess) {
+                onSuccess(dev);
+            }
+        })
+        .fail(function() {
+            if (onFailure) {
+                onFailure();
+            }
+        });
     }
 
     this.onLogin = function(callback) {
