@@ -672,6 +672,37 @@ function SDDLParser() {
     }
 }
 
+function SDDLMarshaller() {
+
+    /* <prop> is an SDDLSensor, SDDLControl, or SDDLClass */
+    this.marshall = function(prop, showDefaults) {
+        var out = "";
+        if (prop.isSensor()) {
+            out = "\"sensor " + prop.name() + "\" : { \n";
+            if (showDefaults || prop.datatype() != "float32") {
+                out += "    \"datatype\" : \"" + prop.datatype() + "\",\n";
+            }
+            if (showDefaults || prop.minValue() != null) {
+                out += "    \"min-value\" : \"" + prop.minValue() + "\",\n";
+            }
+            if (showDefaults || prop.maxValue() != null) {
+                out += "    \"max-value\" : \"" + prop.maxValue() + "\",\n";
+            }
+            if (showDefaults || prop.numericDisplayHint() != "normal") {
+                out += "    \"numeric-display-hint\" : \"" + prop.numericDisplayHint() + "\",\n";
+            }
+            if (showDefaults || prop.regex() != null) {
+                out += "    \"regex\" : \"" + prop.regex() + "\",\n";
+            }
+            if (showDefaults || prop.units() != null) {
+                out += "    \"units\" : \"" + prop.units() + "\",\n";
+            }
+            out = out.substring(0, out.length - 2) + "\n"; // remove trailing comma
+            out += "}";
+        }
+        return out;
+    }
+}
 
 
     /*
@@ -1320,6 +1351,10 @@ function CanopyClient(origSettings) {
             return sddlSensor;
         }
 
+        this.sddlString = function() {
+            return new SDDLMarshaller.marshall(this.sddl(), true);
+        }
+
         /*
          *  params:
          *      onSuccess
@@ -1397,6 +1432,10 @@ function CanopyClient(origSettings) {
 
         this.sddl = function() {
             return sddlSensor;
+        }
+
+        this.sddlString = function() {
+            return new SDDLMarshaller().marshall(this.sddl(), true);
         }
     }
 
