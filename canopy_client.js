@@ -700,6 +700,32 @@ function SDDLMarshaller() {
             out = out.substring(0, out.length - 2) + "\n"; // remove trailing comma
             out += "}";
         }
+        else if (prop.isControl()) {
+            out = "\"control " + prop.name() + "\" : { \n";
+            if (showDefaults || prop.control_type() != "parameter") {
+                out += "    \"control-type\" : \"" + prop.controlType() + "\",\n";
+            }
+            if (showDefaults || prop.datatype() != "float32") {
+                out += "    \"datatype\" : \"" + prop.datatype() + "\",\n";
+            }
+            if (showDefaults || prop.minValue() != null) {
+                out += "    \"min-value\" : \"" + prop.minValue() + "\",\n";
+            }
+            if (showDefaults || prop.maxValue() != null) {
+                out += "    \"max-value\" : \"" + prop.maxValue() + "\",\n";
+            }
+            if (showDefaults || prop.numericDisplayHint() != "normal") {
+                out += "    \"numeric-display-hint\" : \"" + prop.numericDisplayHint() + "\",\n";
+            }
+            if (showDefaults || prop.regex() != null) {
+                out += "    \"regex\" : \"" + prop.regex() + "\",\n";
+            }
+            if (showDefaults || prop.units() != null) {
+                out += "    \"units\" : \"" + prop.units() + "\",\n";
+            }
+            out = out.substring(0, out.length - 2) + "\n"; // remove trailing comma
+            out += "}";
+        }
         return out;
     }
 }
@@ -1178,6 +1204,11 @@ function CanopyClient(origSettings) {
             return initObj.friendly_name;
         }
 
+        this.notifications = function() {
+            // TODO: Wrap in object?
+            return initObj.notifications;
+        }
+
         this.locationNote = function() {
             return initObj.location_note ? initObj.location_note : "Home";
         }
@@ -1348,11 +1379,11 @@ function CanopyClient(origSettings) {
         };
 
         this.sddl = function() {
-            return sddlSensor;
+            return sddlControl;
         }
 
         this.sddlString = function() {
-            return new SDDLMarshaller.marshall(this.sddl(), true);
+            return new SDDLMarshaller().marshall(this.sddl(), true);
         }
 
         /*
