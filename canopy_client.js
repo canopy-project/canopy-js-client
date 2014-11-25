@@ -1249,6 +1249,36 @@ function CanopyClient(origSettings) {
             });
         }
 
+        /*
+         * params:
+         *  sddlObj -- The property to add/update.
+         *  onSuccess
+         *  onError
+         */
+        this.updateSDDL = function(params) {
+            obj = {
+                "__sddl_update" : params.sddlObj
+            };
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                url: selfClient.apiBaseUrl() + "/device/" + self.id(),
+                data: JSON.stringify(obj),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function() {
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
+        }
+
         this.beginControlTransaction = function() {
         }
 
