@@ -54,7 +54,7 @@ are not being tracked.
 
 Callbacks:
 --------------------
-onReady
+OnReady
 
 CanopyClient Callbacks:
     "device-loaded"
@@ -200,28 +200,138 @@ function SDDLParser() {
 
 function CanopyClient(origSettings) {
     var self=this;
-    var priv = {};
+    this.priv = {};
 
     // map: username -> Account object
-    priv.trackedAccounts = {};
+    this.priv.trackedAccounts = {};
     // map: uuid -> Account object
-    priv.trackedDevices = {};
+    this.priv.trackedDevices = {};
 
     function device(id) {
-        return priv.device
+        return this.priv.device
     }
 
-    function onReady(fn) {
-        priv.onReady = fn;
+    this.OnReady = function(fn) {
+        this.priv.onReady = fn;
     }
+
+    this.IsLoggedIn = function() {
+        // TODO: implement
+        return false;
+    }
+
+    // Initialization
+    $(function() {
+        self.priv.onReady();
+    });
+
     this.ApiBaseUrl = function() {
-        return "";
+        return "http://dev02.canopy.link/api";
+    }
+
+    this.CreateAccount = function(params) {
+        $.ajax({
+            type: "POST",
+            dataType : "json",
+            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+            url: self.ApiBaseUrl() + "/create_account",
+            data: JSON.stringify({
+                username : params.username, 
+                email: params.email, 
+                password : params.password, 
+                password_confirm: params.passwordConfirm
+            }),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data) {
+            /* Initialize canopyClient object */
+            /*self.devices = new CanopyDeviceList([]);
+            self.account = new CanopyAccount({
+                username: params.username,
+                email: params.email
+            });*/
+            if (params.onSuccess != null)
+                params.onSuccess();
+        })
+        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
+            console.log(XMLHttpRequest);
+            console.log(textStatus);
+            console.log(errorThrown);
+            if (params.onError != null)
+                params.onError();
+        });
+    }
+
+    this.Login = function(params) {
+        /* TODO: proper error handlilng */
+        /* TODO: response needs to include username & email */
+        $.ajax({
+            type: "POST",
+            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+            dataType : "json",
+            url: self.ApiBaseUrl() + "/login",
+            data: JSON.stringify({username : params.username, password : params.password}),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            if (data['result'] == "ok") {
+                /*var acct = new CanopyAccount({
+                    username: data['username'],
+                    email: data['email']
+                });
+                acct.fetchDevices({
+                    onSuccess: function(deviceList) {
+                        self.devices = deviceList;
+                        if (params.onSuccess)
+                            params.onSuccess(acct);
+                    },
+                    onError: function() {
+                        if (params.onError)
+                            params.onError("unknown");
+                    }
+                });
+                self.account = acct;*/
+                if (params.onSuccess)
+                    params.onSuccess();
+                
+            }
+            else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
+        })
+        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
+            if (!XMLHttpRequest.responseText) {
+                if (params.onError)
+                    params.onError("unknown");
+                return;
+            }
+            console.log(XMLHttpRequest.responseText);
+            var data = JSON.parse(XMLHttpRequest.responseText);
+            console.log(data);
+            console.log(data['result']);
+            console.log(data['error_type']);
+            if (data['result'] == "error") {
+                if (params.onError)
+                    params.onError(data['error_type']);
+            }
+            else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
+        });
     }
 
     // Synchronize with the server
     this.Sync = function(params) {
-        var trackAccts = priv.trackedAccounts;
-        var trackDevices = priv.trackedDevices;
+        var trackAccts = this.priv.trackedAccounts;
+        var trackDevices = this.priv.trackedDevices;
 
         if (priv.trackedAccounts['me'] !== undefined) {
             var acct = priv.trackedAccounts['me'];
@@ -403,7 +513,6 @@ function CanopyClient(origSettings) {
             "temperature" : new CloudVar()
         };
     }
-
     // Initialization.
     /*this.fetchAccount({
         onSuccess : function(devices) {
