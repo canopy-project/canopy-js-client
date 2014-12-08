@@ -144,6 +144,7 @@ function SDDLParser() {
                 if (child.error != null) {
                     return {value: null, error: child.error};
                 }
+                out.priv.children[child.value.Name()] = child.value;
             }
         }
         return {value: out, error: null};
@@ -153,52 +154,52 @@ function SDDLParser() {
         this.priv = {};
         this.priv.children = {};
 
-        this.Direction() {
+        this.Directio = function() {
             return this.priv.direction;
         }
 
-        this.ConcreteDirection() {
+        this.ConcreteDirection = function() {
             if (this.Direction == "inherit") {
                 return this.priv.parent.ConcreteDirection();
             }
             return this.Direction();
         }
 
-        this.Description() {
+        this.Description = function() {
             return this.priv.description;
         }
-        this.Datatype() {
+        this.Datatype = function() {
             return this.priv.datatype;
         }
 
-        this.Name() {
+        this.Name = function() {
             return this.priv.name;
         }
 
-        this.MinValue() {
+        this.MinValue = function() {
             return this.priv.minValue;
         }
 
-        this.MaxValue() {
+        this.MaxValue = function() {
             return this.priv.maxValue;
         }
 
-        this.NumericDisplayHint() {
+        this.NumericDisplayHint = function() {
             return this.priv.numericDisplayHint;
         }
 
-        this.Regex() {
+        this.Regex = function() {
             return this.priv.regex;
         }
 
-        this.Units() {
+        this.Units = function() {
             return this.priv.units;
         }
     }
-
 }
 
 function CanopyClient(origSettings) {
+    var self=this;
     var priv = {};
 
     // map: username -> Account object
@@ -212,6 +213,9 @@ function CanopyClient(origSettings) {
 
     function onReady(fn) {
         priv.onReady = fn;
+    }
+    this.ApiBaseUrl = function() {
+        return "";
     }
 
     // Synchronize with the server
@@ -230,14 +234,15 @@ function CanopyClient(origSettings) {
                 new CanopyDevice()
             ];
             acct.priv.onDeviceLoaded(acct.priv.devices[0]);
-            return;
         }
 
-        $.ajax({
+        var ajax = CCSSimulatorAjax;
+
+        ajax({
             type: "POST",
             data: JSON.stringify({ "sync-accounts" : trackAccts, "sync-devices" : trackDevices}),
             dataType : "json",
-            url: self.apiBaseUrl() + "/sync",
+            url: self.ApiBaseUrl() + "/sync",
             xhrFields: {
                  withCredentials: true
             },
@@ -245,6 +250,7 @@ function CanopyClient(origSettings) {
         })
         .done(function(data, textStatus, jqXHR) {
             // Update each synchronized account object
+            alert("sync done");
             if (data['result'] == "ok") {
                 var acct = new CanopyAccount({
                     username: data['username'],
