@@ -216,14 +216,8 @@ function CanopyClient(origSettings) {
     }
 
     this.IsLoggedIn = function() {
-        // TODO: implement
-        return false;
+        return self.priv.me !== undefined;
     }
-
-    // Initialization
-    $(function() {
-        self.priv.onReady();
-    });
 
     this.ApiBaseUrl = function() {
         return "http://dev02.canopy.link/api";
@@ -253,8 +247,14 @@ function CanopyClient(origSettings) {
                 username: params.username,
                 email: params.email
             });*/
-            if (params.onSuccess != null)
-                params.onSuccess();
+            if (data['result'] == "ok") {
+                if (params.onSuccess != null)
+                    params.onSuccess();
+            } 
+            else {
+                if (params.onError != null)
+                    params.onError(data['error']);
+            }
         })
         .fail(function(XMLHttpRequest, textStatus, errorThrown) {
             console.log(XMLHttpRequest);
@@ -405,7 +405,7 @@ function CanopyClient(origSettings) {
         $.ajax({
             type: "GET",
             dataType : "json",
-            url: self.apiBaseUrl() + "/me",
+            url: self.ApiBaseUrl() + "/me",
             xhrFields: {
                  withCredentials: true
             },
@@ -513,11 +513,20 @@ function CanopyClient(origSettings) {
             "temperature" : new CloudVar()
         };
     }
-    // Initialization.
-    /*this.fetchAccount({
-        onSuccess : function(devices) {
-        }
-    })*/
+
+    // Initialization
+    $(function() {
+        fetchAccount({
+            onSuccess : function(acct) {
+                self.priv.me = acct;
+                self.priv.onReady();
+            },
+            onError : function(acct) {
+                self.priv.onReady();
+            }
+        })
+    });
+
 }
 
 // Example program:
