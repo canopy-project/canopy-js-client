@@ -682,7 +682,25 @@ function CanopyClient(origSettings) {
         }
 
         this.IsConnected = function() {
-            return initObj.connected;
+            return this.ConnectionStatus() == "connected";
+        }
+
+        this.IsDisconnected = function() {
+            return this.ConnectionStatus() == "disconnected";
+        }
+
+        this.IsNeverConnected = function() {
+            return this.ConnectionStatus() == "never_connected";
+        }
+
+        this.ConnectionStatus = function() {
+            if (initObj.connected || this.UUID().substring(0, 1) == "5") {
+                return "connected";
+            }
+            else if (initObj.sddl_class == null && this.UUID().substring(0, 1) != "a") {
+                return "never_connected";
+            }
+            return "disconnected";
         }
     }
 
@@ -692,23 +710,28 @@ function CanopyClient(origSettings) {
     function CanopyDeviceList(devices) {
 
         this.Filter = function(options) {
+            if ($.isEmptyObject(options)) {
+                return devices;
+            }
             filteredDevices = [];
-            if (options['connected'] === true) {
-                for (i = 0; i < devices.length; i++) {
-                    if (devices[i].IsConnected()) {
-                        filteredDevices.push(devices[i]);
-                    }
+            for (i = 0; i < devices.length; i++) {
+                var device = devices[i];
+                if (options['connected'] == device.IsConnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
                 }
-                return new CanopyDeviceList(filteredDevices);
-            }
-            else if (options['connected'] === false) {
-                for (i = 0; i < devices.length; i++) {
-                    if (!devices[i].IsConnected()) {
-                        filteredDevices.push(devices[i]);
-                    }
+
+                if (options['disconnected'] == device.IsDisconnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
                 }
-                return new CanopyDeviceList(filteredDevices);
+
+                if (options['never_connected'] == device.IsNeverConnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
             }
+            return filteredDevices;
         }
 
         this.Connected = function() {
@@ -716,7 +739,11 @@ function CanopyClient(origSettings) {
         }
 
         this.Disconnected = function() {
-            return this.Filter({connected: false});
+            return this.Filter({disconnected: true});
+        }
+
+        this.NeverConnected = function() {
+            return this.Filter({never_connected: true});
         }
 
         this.Count = function(options) {
