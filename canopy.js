@@ -200,6 +200,7 @@ function SDDLParser() {
 
 function CanopyClient(origSettings) {
     var self=this;
+    var selfClient = this;
     this.priv = {};
     this.me = null;
 
@@ -374,6 +375,35 @@ function CanopyClient(origSettings) {
         .fail(function() {
             if (params.onError)
                 params.onError();
+        });
+    }
+
+    // Activate an Account
+    this.ActivateAccount = function(params) {
+        $.ajax({
+            type: "POST",
+            data: JSON.stringify({ "username" : params["username"], "code" : params["code"]}),
+            dataType : "json",
+            url: self.ApiBaseUrl() + "/activate",
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            // Update each synchronized account object
+            if (data['result'] == "ok") {
+                if (params.onSuccess)
+                    params.onSuccess();
+            } else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            /* TODO: determine error */
+            if (params.onError)
+                params.onError("unknown");
         });
     }
 
@@ -584,6 +614,12 @@ function CanopyClient(origSettings) {
 
         this.properties = classInstance.properties;*/
 
+        this.vars = {
+            Length: function() {
+                return 0;
+            }
+        }
+
         this.id = function() {
             return initObj.device_id;
         }
@@ -598,8 +634,8 @@ function CanopyClient(origSettings) {
             return initObj.notifications;
         }
 
-        this.locationNote = function() {
-            return initObj.location_note ? initObj.location_note : "Home";
+        this.LocationNote = function() {
+            return initObj.location_note ? initObj.location_note : "";
         }
 
         this.sddlClass = function() {
@@ -618,10 +654,12 @@ function CanopyClient(origSettings) {
                 __friendly_name: params.friendlyName,
                 __location_note: params.locationNote
             };
+            initObj.friendly_name = params.friendlyName;
+            initObj.location_note = params.locationNote;
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.apiBaseUrl() + "/device/" + self.id(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.id(),
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
@@ -651,7 +689,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.apiBaseUrl() + "/device/" + self.id(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.id(),
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
