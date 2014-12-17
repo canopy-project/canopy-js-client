@@ -748,6 +748,14 @@ function CanopyClient(origSettings) {
             });
         }
 
+
+        this.LastSeenSecondsAgo = function() {
+            if (initObj.status.last_seen) {
+                var d = new Date().setRFC3339(initObj.status.last_seen);
+                return (new Date() - d) / 1000;
+            }
+        }
+
         this.beginControlTransaction = function() {
         }
 
@@ -782,6 +790,29 @@ function CanopyClient(origSettings) {
             }
             return "disconnected";
         }
+
+        this.IsActivated = function() {
+            return this.OperStatus() == "in_operation";
+        }
+
+        this.IsActive = function() {
+            return (this.LastSeenSecondsAgo() < 60);
+        }
+
+        this.IsInactive = function(seconds) {
+            return (this.LastSeenSecondsAgo() >= 60);
+        }
+
+        this.IsNewlyCreated = function() {
+            return this.OperStatus() == "newly_created";
+        }
+
+        this.LastSeen = function() {
+            this.LastSeenSecondsAgo();
+            if (initObj['status']) {
+                return initObj['status'].last_seen;
+            }
+        }
     }
 
     /*
@@ -794,29 +825,16 @@ function CanopyClient(origSettings) {
             this[device.UUID()] = device;
         }
 
-        this.Filter = function(options) {
-            if ($.isEmptyObject(options)) {
-                return devices;
-            }
-            filteredDevices = [];
-            for (i = 0; i < devices.length; i++) {
-                var device = devices[i];
-                if (options['connected'] == device.IsConnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
+        this.Activated = function() {
+            return this.Filter({activated: true});
+        }
 
-                if (options['disconnected'] == device.IsDisconnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
+        this.Active = function() {
+            return this.Filter({active: true});
+        }
 
-                if (options['never_connected'] == device.IsNeverConnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-            }
-            return filteredDevices;
+        this.Count = function(options) {
+            return this.Filter(options).length;
         }
 
         this.Connected = function() {
@@ -827,12 +845,56 @@ function CanopyClient(origSettings) {
             return this.Filter({disconnected: true});
         }
 
+        this.Filter = function(options) {
+            if ($.isEmptyObject(options)) {
+                return devices;
+            }
+            filteredDevices = [];
+            for (i = 0; i < devices.length; i++) {
+                var device = devices[i];
+                if (options['activated'] == device.IsActivated()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+                if (options['active'] == device.IsActive()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+                if (options['connected'] == device.IsConnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+
+                if (options['disconnected'] == device.IsDisconnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+                if (options['inactive'] == device.IsInactive()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+                if (options['never_connected'] == device.IsNeverConnected()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+                if (options['newly_created'] == device.IsNewlyCreated()) {
+                    filteredDevices.push(devices[i]);
+                    continue;
+                }
+            }
+            return filteredDevices;
+        }
+
+        this.Inactive = function() {
+            return this.Filter({inactive: true});
+        }
+
         this.NeverConnected = function() {
             return this.Filter({never_connected: true});
         }
 
-        this.Count = function(options) {
-            return this.Filter(options).length;
+        this.NewlyCreated = function() {
+            return this.Filter({newly_created: true});
         }
 
         /* simulate array */
@@ -879,3 +941,38 @@ canopy.Sync({
     }
 });
 */
+
+
+/*
+ * FROM http://blog.toppingdesign.com/2009/08/13/fast-rfc-3339-date-processing-in-javascript/
+ */
+Date.prototype.setRFC3339 = function(dString){ 
+    var utcOffset, offsetSplitChar;
+    var offsetMultiplier = 1;
+    var dateTime = dString.split("T");
+    var date = dateTime[0].split("-");
+    var time = dateTime[1].split(":");
+    var offsetField = time[time.length - 1];
+    var offsetString;
+    offsetFieldIdentifier = offsetField.charAt(offsetField.length - 1);
+    if (offsetFieldIdentifier == "Z") {
+        utcOffset = 0;
+        time[time.length - 1] = offsetField.substr(0, offsetField.length - 2);
+    } else {
+        if (offsetField[offsetField.length - 1].indexOf("+") != -1) {
+            offsetSplitChar = "+";
+            offsetMultiplier = 1;
+        } else {
+            offsetSplitChar = "-";
+            offsetMultiplier = -1;
+        }
+        offsetString = offsetField.split(offsetSplitChar);
+        time[time.length - 1] == offsetString[0];
+        offsetString = offsetString[1].split(":");
+        utcOffset = (offsetString[0] * 60) + offsetString[1];
+        utcOffset = utcOffset * 60 * 1000;
+    }
+
+    this.setTime(Date.UTC(date[0], date[1] - 1, date[2], time[0], time[1], time[2]) + (utcOffset * offsetMultiplier ));
+    return this;
+};
