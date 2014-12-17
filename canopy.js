@@ -701,7 +701,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.id(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID(),
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
@@ -731,7 +731,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.id(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID(),
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
