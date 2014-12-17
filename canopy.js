@@ -667,12 +667,12 @@ function CanopyClient(origSettings) {
 
     // Creates a new "inout struct __root__" CloudVar object that contains the
     // children according to sddlObj and varsObj.
-    function CloudVarSystem(sddlVarDefRoot, varsObjRoot) {
+    function CloudVarSystem(device, sddlVarDefRoot, varsObjRoot) {
         var keys = [];
         var vars = [];
         for (key in varsObjRoot) {
             keys.push(key);
-            newVar = new CloudVar(sddlVarDefRoot.StructMember(key), varsObjRoot[key]);
+            newVar = new CloudVar(device, sddlVarDefRoot.StructMember(key), varsObjRoot[key]);
             vars.push(newVar);
         }
 
@@ -693,13 +693,24 @@ function CanopyClient(origSettings) {
         }
     }
 
-    function CloudVar(sddlVarDef, valueJsonObj) {
+    function CloudVar(device, sddlVarDef, valueJsonObj) {
         var priv = {};
+        var self=this;
         this.priv = priv;
 
         // Parse
         priv.value = valueJsonObj.v;
+        priv.timestamp = valueJsonObj.t;
         priv.sddl = sddlVarDef;
+
+        var _ConvertValue = function(val) {
+            if (self.Datatype() == "float32" 
+                    || self.Datatype() == "float64") {
+                return parseFloat(val);
+            }
+            // TODO: other datatypes
+            return val;
+        }
 
         this.Direction = function() {
             return this.priv.sddl.Direction()
@@ -715,6 +726,31 @@ function CanopyClient(origSettings) {
         this.Datatype = function() {
             return this.priv.sddl.Datatype();
         }
+
+        this.Device = function() {
+            return device;
+        }
+
+        this.FetchHistoricData = function(params) {
+            $.ajax({
+                type: "GET",
+                dataType: "json",
+                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "/" + this.Name(),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function(data, textStatus, jqXHR) {
+                if (params.onSuccess)
+                    params.onSuccess(data);
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
+        }
+
 
         this.Name = function() {
             return this.priv.sddl.Name();
@@ -736,12 +772,45 @@ function CanopyClient(origSettings) {
             return this.priv.sddl.Regex();
         }
 
+        this.Save = function(params) {
+            obj = {
+                vars: {
+                }
+            };
+            obj.vars[this.Name()] = this.Value();
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID(),
+                data: JSON.stringify(obj),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function() {
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
+        }
+
         this.SDDLVarDef = function() {
             return this.priv.sddl
         }
 
         this.Timestamp = function() {
-            return priv.valueJsonObj.t;
+            return priv.timestamp;
+        }
+
+        this.TimestampSecondsAgo = function() {
+            if (priv.timestamp) {
+                var d = new Date().setRFC3339(priv.timestamp);
+                return (new Date() - d) / 1000;
+            }
         }
 
         this.Units = function() {
@@ -751,7 +820,8 @@ function CanopyClient(origSettings) {
         // Get or set the cloud variable's value
         this.Value = function(newValue) {
             if (newValue !== undefined) {
-                priv.value = newValue;
+                val = _ConvertValue(newValue);
+                priv.value = val;
                 // TODO: mark dirty
             }
             return priv.value;
@@ -789,7 +859,7 @@ function CanopyClient(origSettings) {
             }
             sddlVarDef = result.value;
 
-            return new CloudVarSystem(sddlVarDef, initObj.vars);
+            return new CloudVarSystem(this, sddlVarDef, initObj.vars);
         }
 
         this.vars = {
