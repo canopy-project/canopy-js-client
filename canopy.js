@@ -106,9 +106,40 @@ CLOUD VARIABLES
 */
 
 function SDDLParser() {
+    var self=this;
+
     // Parses json Object into anonymous cloudvar struct
-    this.Parse = function(jsonObj) {
+    this.Parse = function(propsJsonObj) {
         return this.ParseVar("inout struct __root__", propsJsonObj);
+    }
+
+    // Returns {
+    //    datatype: varDatatype,
+    //    direction: varDirection,
+    //    error: errorStringOrNull,
+    //    name: varName,
+    this.ParseDeclString = function(declString) {
+        // TODO: Fix this hacky implementation
+        parts = declString.split(" ");
+        if (parts.length == 2) {
+            return {
+                datatype: parts[0],
+                direction: "inout",
+                error: null,
+                name: parts[1]
+            };
+        }
+        else if (parts.length == 3) {
+            return {
+                datatype: parts[1],
+                direction: parts[0],
+                error: null,
+                name: parts[2]
+            };
+        }
+        return {
+            error: "Could not parse declstring"
+        };
     }
 
     // Returns {value: SDDLVarDef, error: errorStringOrNull}
@@ -117,11 +148,19 @@ function SDDLParser() {
 
         // Parse declString
         // For example: "out float32 temperature";
-        out.priv.direction = "out";
-        out.priv.datatype = "string";
-        out.priv.name = "temperature";
+        var decl = this.ParseDeclString(declString);
+        if (decl.error != null) {
+            return {
+                value: null,
+                error: decl.error
+            };
+        }
+        out.priv.direction = decl.direction
+        out.priv.datatype = decl.datatype;
+        out.priv.name = decl.name;
 
         // Parse properties
+        out.priv.numChildren = 0;
         for (var x in propsJsonObj) {
             var val = propsJsonObj[x];
 
@@ -150,6 +189,7 @@ function SDDLParser() {
                     return {value: null, error: child.error};
                 }
                 out.priv.children[child.value.Name()] = child.value;
+                out.priv.numChildren++;
             }
         }
         return {value: out, error: null};
@@ -158,10 +198,6 @@ function SDDLParser() {
     function SDDLVar() {
         this.priv = {};
         this.priv.children = {};
-
-        this.Directio = function() {
-            return this.priv.direction;
-        }
 
         this.ConcreteDirection = function() {
             if (this.Direction == "inherit") {
@@ -173,12 +209,21 @@ function SDDLParser() {
         this.Description = function() {
             return this.priv.description;
         }
+
         this.Datatype = function() {
             return this.priv.datatype;
         }
 
+        this.Direction = function() {
+            return this.priv.direction;
+        }
+
         this.Name = function() {
             return this.priv.name;
+        }
+
+        this.NumStructMembers = function() {
+            return this.priv.numChildren;
         }
 
         this.MinValue = function() {
@@ -195,6 +240,10 @@ function SDDLParser() {
 
         this.Regex = function() {
             return this.priv.regex;
+        }
+
+        this.StructMember = function(name) {
+            return this.priv.children[name];
         }
 
         this.Units = function() {
@@ -616,16 +665,98 @@ function CanopyClient(origSettings) {
 
     }
 
-    function CloudVar(params) {
+    // Creates a new "inout struct __root__" CloudVar object that contains the
+    // children according to sddlObj and varsObj.
+    function CloudVarSystem(sddlVarDefRoot, varsObjRoot) {
+        var keys = [];
+        var vars = [];
+        for (key in varsObjRoot) {
+            keys.push(key);
+            newVar = new CloudVar(sddlVarDefRoot.StructMember(key), varsObjRoot[key]);
+            vars.push(newVar);
+        }
+
+        this.NumVars = function() {
+            return sddlVarDefRoot.NumStructMembers();
+        }
+
+        this.Length = this.NumVars;
+
+        // returns list of var keys
+        this.VarKeys = function() {
+            return keys;
+        }
+
+        // lookup var by key or index
+        this.Var = function(idx) {
+            return vars[idx];
+        }
+    }
+
+    function CloudVar(sddlVarDef, valueJsonObj) {
         var priv = {};
-        priv.value = undefined;
+        this.priv = priv;
+
+        // Parse
+        priv.value = valueJsonObj.v;
+        priv.sddl = sddlVarDef;
+
+        this.Direction = function() {
+            return this.priv.sddl.Direction()
+        }
+
+        this.ConcreteDirection = function() {
+            return this.priv.sddl.ConcreteDirection();
+        }
+
+        this.Description = function() {
+            return this.priv.sddl.Description();
+        }
+        this.Datatype = function() {
+            return this.priv.sddl.Datatype();
+        }
+
+        this.Name = function() {
+            return this.priv.sddl.Name();
+        }
+
+        this.MinValue = function() {
+            return this.priv.sddl.MinValue();
+        }
+
+        this.MaxValue = function() {
+            return this.priv.sddl.MaxValue();
+        }
+
+        this.NumericDisplayHint = function() {
+            return this.priv.sddl.NumericDisplayHint();
+        }
+
+        this.Regex = function() {
+            return this.priv.sddl.Regex();
+        }
+
+        this.SDDLVarDef = function() {
+            return this.priv.sddl
+        }
+
+        this.Timestamp = function() {
+            return priv.valueJsonObj.t;
+        }
+
+        this.Units = function() {
+            return this.priv.sddl.Units();
+        }
+
+        // Get or set the cloud variable's value
         this.Value = function(newValue) {
             if (newValue !== undefined) {
                 priv.value = newValue;
-                // mark dirty
+                // TODO: mark dirty
             }
             return priv.value;
         }
+
     }
 
     /*
@@ -643,6 +774,23 @@ function CanopyClient(origSettings) {
         var classInstance = result.instance;
 
         this.properties = classInstance.properties;*/
+
+        this.Vars = function() {
+            // TODO cache results
+            if (!initObj.sddl) {
+                return undefined;
+            }
+            if (!initObj.vars) {
+                return undefined;
+            }
+            result = (new SDDLParser()).Parse(initObj.sddl);
+            if (result.error != null) {
+                return undefined;
+            }
+            sddlVarDef = result.value;
+
+            return new CloudVarSystem(sddlVarDef, initObj.vars);
+        }
 
         this.vars = {
             Length: function() {
