@@ -1,6 +1,11 @@
 /*
 Canopy Javascript Client API
 
+TODO: Maybe we should split this up into two or more files:
+    - canopy_rest_client.js   -- Simple wrapper around REST API
+    - canopy_ws_client.js   -- Simple wrapper around REST API
+    - canopy.js -- High-level interface (ORM)
+
 CANOPY CLIENT OBJECT
 --------------------
 
@@ -204,14 +209,23 @@ function CanopyClient(origSettings) {
     this.priv = {};
     this.me = null;
 
+    // map: uuid-> Device object
+    // Contains all devices that the client knows about
+    this.priv.cachedDevices = {};
+
+    this.priv._CacheGetDevice = function(deviceJson) {
+        var cachedDevice = selfClient.priv.cachedDevices[deviceJson['device_id']];
+        if (cachedDevice == undefined) {
+            cachedDevice = new CanopyDevice(deviceJson);
+            selfClient.priv.cachedDevices[deviceJson['device_id']] = cachedDevice;
+        }
+        return cachedDevice;
+    }
+
     // map: username -> Account object
     this.priv.trackedAccounts = {};
     // map: uuid -> Account object
     this.priv.trackedDevices = {};
-
-    function device(id) {
-        return this.priv.device
-    }
 
     this.OnReady = function(fn) {
         this.priv.onReady = fn;
@@ -267,15 +281,15 @@ function CanopyClient(origSettings) {
         });
     }
 
-    this.CreateDevice = function(params) {
+    this.CreateDevices = function(params) {
         $.ajax({
             type: "POST",
             dataType : "json",
             contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            url: self.ApiBaseUrl() + "/create_device",
+            url: self.ApiBaseUrl() + "/create_devices",
             data: JSON.stringify({
-                device_name: params.deviceName,
-                quanitity: params.quantity,
+                friendly_names: params.deviceNames,
+                quantity: params.quantity,
             }),
             xhrFields: {
                  withCredentials: true
@@ -283,13 +297,14 @@ function CanopyClient(origSettings) {
             crossDomain: true
         })
         .done(function(data) {
-            /* Initialize canopyClient object */
-            /*self.devices = new CanopyDeviceList([]);
-            self.account = new CanopyAccount({
-                username: params.username,
-                email: params.email
-            });*/
             if (data['result'] == "ok") {
+                for (var i = 0; i < data['devices'].length; i++) {
+                    // create new device resource
+                    var device = selfClient.priv._CacheGetDevice(data['devices'][i]);
+
+                    // add it to the account's device list
+                    selfClient.me.priv.devices.Append(device);
+                }
                 if (params.onSuccess != null)
                     params.onSuccess();
             } 
@@ -475,7 +490,8 @@ function CanopyClient(origSettings) {
         }
     }
 
-    this.Device = function(device) {
+    this.Device = function(uuid) {
+        return selfClient.priv.devices[uuid]
     }
     
     // fetchAccount (private)
@@ -532,6 +548,7 @@ function CanopyClient(origSettings) {
     // calling the constructor.
     function CanopyAccount(initObj) {
         var priv = {};
+        var self=this;
         this.priv = priv;
         priv.ready = true;
         priv.username = initObj.username;
@@ -563,7 +580,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "GET",
                 dataType : "json",
-                url: self.ApiBaseUrl() + "/me/devices",
+                url: selfClient.ApiBaseUrl() + "/me/devices",
                 xhrFields: {
                      withCredentials: true
                 },
@@ -576,14 +593,27 @@ function CanopyClient(origSettings) {
                     var dev = new CanopyDevice(data.devices[i]);
                     devices.push(dev);
                 }
+                self.priv.devices = new CanopyDeviceList(devices);
                 if (params.onSuccess)
-                    params.onSuccess(new CanopyDeviceList(devices));
+                    params.onSuccess(self.priv.devices);
             })
             .fail(function() {
                 if (params.onError)
                     params.onError("unknown");
             });
         }
+
+        this.Devices = function() {
+            return self.priv.devices;
+        }
+
+        // Initialize
+        this.fetchDevices({
+            onSuccess: function(deviceList) {
+            }
+        })
+
+
     }
 
     function CloudVar(params) {
@@ -620,10 +650,10 @@ function CanopyClient(origSettings) {
             }
         }
 
-        this.id = function() {
+        this.ID = function() {
             return initObj.device_id;
         }
-        this.UUID = this.id;
+        this.UUID = this.ID,
 
         this.FriendlyName = function() {
             return initObj.friendly_name;
@@ -640,6 +670,10 @@ function CanopyClient(origSettings) {
 
         this.sddlClass = function() {
             return new SDDLClass(initObj.sddl_class);
+        }
+
+        this.SecretKey = function() {
+            return initObj.secret_key ? initObj.secret_key : "hidden";
         }
 
         /*
@@ -732,10 +766,10 @@ function CanopyClient(origSettings) {
         }
 
         this.ConnectionStatus = function() {
-            if (initObj.connected || this.UUID().substring(0, 1) == "5") {
+            if (initObj.connected) {
                 return "connected";
             }
-            else if (initObj.sddl_class == null && this.UUID().substring(0, 1) != "a") {
+            else if (initObj.sddl_class == null) {
                 return "never_connected";
             }
             return "disconnected";
@@ -746,6 +780,11 @@ function CanopyClient(origSettings) {
      * <devices> is list of CanopyDevice objects.
      */
     function CanopyDeviceList(devices) {
+        this.Append = function(device) {
+            this.length += 1;
+            this[this.length-1] = device;
+            this[device.UUID()] = device;
+        }
 
         this.Filter = function(options) {
             if ($.isEmptyObject(options)) {
@@ -796,7 +835,7 @@ function CanopyClient(origSettings) {
 
         /* simulate map */
         for (var i = 0; i < devices.length; i++) {
-            this[devices[i].id()] = devices[i];
+            this[devices[i].UUID()] = devices[i];
         }
     }
 
