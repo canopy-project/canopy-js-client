@@ -650,13 +650,23 @@ function CanopyClient(origSettings) {
             }
         }
 
-        this.ID = function() {
-            return initObj.device_id;
+        this.OperStatus = function() {
+            if (initObj['status']) {
+                return initObj['status'].oper_status;
+            }
+            return undefined;
         }
-        this.UUID = this.ID,
 
         this.FriendlyName = function() {
             return initObj.friendly_name;
+        }
+
+        this.ID = function() {
+            return initObj.device_id;
+        }
+
+        this.LocationNote = function() {
+            return initObj.location_note ? initObj.location_note : "";
         }
 
         this.notifications = function() {
@@ -664,9 +674,6 @@ function CanopyClient(origSettings) {
             return initObj.notifications;
         }
 
-        this.LocationNote = function() {
-            return initObj.location_note ? initObj.location_note : "";
-        }
 
         this.sddlClass = function() {
             return new SDDLClass(initObj.sddl_class);
@@ -676,6 +683,7 @@ function CanopyClient(origSettings) {
             return initObj.secret_key ? initObj.secret_key : "hidden";
         }
 
+        this.UUID = this.ID,
         /*
          *  params:
          *      friendlyName
