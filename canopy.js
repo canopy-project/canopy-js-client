@@ -624,6 +624,37 @@ function CanopyClient(origSettings) {
             return {"value" : priv.username, "error" : null};
         }
 
+        this.UpdateProfile = function(params) {
+            if (params.newPassword != params.confirmPassword) {
+                if (params.onError())
+                    params.onError();
+                return;
+            }
+            obj = {
+                old_password: params.oldPassword,
+                new_password: params.newPassword,
+            };
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                data: JSON.stringify(obj),
+                url: selfClient.ApiBaseUrl() + "/me",
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function(data, textStatus, jqXHR) {
+                /* construct CanopyDevice objects */
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError("unknown");
+            });
+        }
+
         this.fetchDevices = function(params) {
             /* TODO: Filter to only show devices for this account */
             $.ajax({
