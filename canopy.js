@@ -868,13 +868,6 @@ function CanopyClient(origSettings) {
             }
         }
 
-        this.OperStatus = function() {
-            if (initObj['status']) {
-                return initObj['status'].oper_status;
-            }
-            return undefined;
-        }
-
         this.FriendlyName = function() {
             return initObj.friendly_name;
         }
@@ -967,10 +960,13 @@ function CanopyClient(origSettings) {
         }
 
 
-        this.LastSeenSecondsAgo = function() {
-            if (initObj.status.last_seen) {
-                var d = new Date().setRFC3339(initObj.status.last_seen);
+        this.LastActivitySecondsAgo = function() {
+            if (initObj.status.last_activity_time) {
+                var d = new Date().setRFC3339(initObj.status.last_activity_time);
                 return (new Date() - d) / 1000;
+            }
+            else {
+                return null;
             }
         }
 
@@ -1003,33 +999,26 @@ function CanopyClient(origSettings) {
             if (initObj.connected) {
                 return "connected";
             }
-            else if (initObj.sddl_class == null) {
-                return "never_connected";
-            }
             return "disconnected";
         }
 
-        this.IsActivated = function() {
-            return this.OperStatus() == "in_operation";
-        }
-
         this.IsActive = function() {
-            return (this.LastSeenSecondsAgo() < 60);
+            return (this.LastActivitySecondsAgo() != null && this.LastActivitySecondsAgo() < 60);
         }
 
         this.IsInactive = function(seconds) {
-            return (this.LastSeenSecondsAgo() >= 60);
+            return (this.LastActivitySecondsAgo() >= 60);
         }
 
         this.IsNewlyCreated = function() {
-            return this.OperStatus() == "newly_created";
+            return (this.LastActivityTime() == null);
         }
 
-        this.LastSeen = function() {
-            this.LastSeenSecondsAgo();
+        this.LastActivityTime = function() {
             if (initObj['status']) {
-                return initObj['status'].last_seen;
+                return initObj['status'].last_activity_time;
             }
+            return undefined;
         }
     }
 
@@ -1041,10 +1030,6 @@ function CanopyClient(origSettings) {
             this.length += 1;
             this[this.length-1] = device;
             this[device.UUID()] = device;
-        }
-
-        this.Activated = function() {
-            return this.Filter({activated: true});
         }
 
         this.Active = function() {
@@ -1070,10 +1055,6 @@ function CanopyClient(origSettings) {
             filteredDevices = [];
             for (i = 0; i < devices.length; i++) {
                 var device = devices[i];
-                if (options['activated'] == device.IsActivated()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
                 if (options['active'] == device.IsActive()) {
                     filteredDevices.push(devices[i]);
                     continue;
