@@ -601,6 +601,7 @@ function CanopyClient(origSettings) {
         this.priv = priv;
         priv.ready = true;
         priv.username = initObj.username;
+        priv.email = initObj.email;
 
         this.Email = function() {
             if (!priv.ready) {
@@ -625,15 +626,18 @@ function CanopyClient(origSettings) {
         }
 
         this.UpdateProfile = function(params) {
+            var obj = {};
             if (params.newPassword != params.confirmPassword) {
                 if (params.onError())
                     params.onError();
                 return;
             }
-            obj = {
-                old_password: params.oldPassword,
-                new_password: params.newPassword,
-            };
+            if (params.oldPassword)
+                obj.old_password = params.oldPassword;
+            if (params.newPassword)
+                obj.new_password = params.newPassword;
+            if (params.email)
+                obj.email = params.email;
             $.ajax({
                 type: "POST",
                 dataType : "json",
