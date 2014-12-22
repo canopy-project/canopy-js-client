@@ -12,7 +12,7 @@ CANOPY CLIENT OBJECT
 Initialize the library by creating a Canopy Client Object with:
 
     canopy = new CanopyClient({
-        "cloud-host" : "ccs.canopy.link"
+        "cloudHost" : "ccs.canopy.link"
     });
 
 TRACKING ACCOUNTS AND DEVICES
@@ -271,6 +271,8 @@ function CanopyClient(origSettings) {
         return cachedDevice;
     }
 
+    this.priv.cloudHost = (origSettings["cloudHost"] != undefined) ? origSettings["cloudHost"] : "sandbox.canopy.link";
+
     // map: username -> Account object
     this.priv.trackedAccounts = {};
     // map: uuid -> Account object
@@ -285,7 +287,11 @@ function CanopyClient(origSettings) {
     }
 
     this.ApiBaseUrl = function() {
-        return "http://dev02.canopy.link/api";
+        return "http://" + this.priv.cloudHost + "/api";
+    }
+
+    this.CloudHost = function() {
+        return this.priv.cloudHost;
     }
 
     this.CreateAccount = function(params) {
@@ -558,6 +564,7 @@ function CanopyClient(origSettings) {
         .done(function(data, textStatus, jqXHR) {
             if (data['result'] == "ok") {
                 var acct = new CanopyAccount({
+                    activated: data['activated'],
                     username: data['username'],
                     email: data['email']
                 });
@@ -616,6 +623,22 @@ function CanopyClient(origSettings) {
             } else if (eventNames == "device-loaded") {
                 priv.onDeviceLoaded = callback;
             }
+        }
+
+        this.IsActivated = function() {
+            return initObj.activated;
+        }
+
+        this.Quotas = function() {
+            if (this.Username().value == "gregp") {
+                // hack!!
+                return {
+                    "devices": 100000
+                };
+            }
+            return {
+                "devices": 10
+            };
         }
 
         this.Username = function() {
@@ -705,10 +728,13 @@ function CanopyClient(origSettings) {
     function CloudVarSystem(device, sddlVarDefRoot, varsObjRoot) {
         var keys = [];
         var vars = [];
+        var varsByName = {};
+
         for (key in varsObjRoot) {
             keys.push(key);
             newVar = new CloudVar(device, sddlVarDefRoot.StructMember(key), varsObjRoot[key]);
             vars.push(newVar);
+            varsByName[newVar.Name()] = newVar;
         }
 
         this.NumVars = function() {
@@ -724,6 +750,9 @@ function CanopyClient(origSettings) {
 
         // lookup var by key or index
         this.Var = function(idx) {
+            if (varsByName[idx] != undefined) {
+                return varsByName[idx];
+            }
             return vars[idx];
         }
     }
@@ -1077,6 +1106,28 @@ function CanopyClient(origSettings) {
 
         this.Connected = function() {
             return this.Filter({connected: true});
+        }
+
+        this.CloudVarNames = function() {
+            var cloudvars = {}
+            var i = 0;
+            for (i = 0; i < this.length; i++) {
+                var vars = this[i].Vars();
+                if (vars == undefined)
+                    continue;
+                var j;
+                varkeys = vars.VarKeys();
+                for (j = 0; j < varkeys.length; j++) {
+                    cloudvars[varkeys[j]] = true;
+                }
+            }
+            var outkeys = [];
+            var v;
+            for (v in cloudvars) {
+                outkeys.push(v);
+            }
+
+            return outkeys;
         }
 
         this.Disconnected = function() {
