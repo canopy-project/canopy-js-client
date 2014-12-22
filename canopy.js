@@ -772,7 +772,17 @@ function CanopyClient(origSettings) {
                     || self.Datatype() == "float64") {
                 return parseFloat(val);
             }
-            // TODO: other datatypes
+            else if (self.Datatype() == "int8" 
+                    || self.Datatype() == "int16"
+                    || self.Datatype() == "int32"
+                    || self.Datatype() == "uint8"
+                    || self.Datatype() == "uint16"
+                    || self.Datatype() == "uint32") {
+                return parseInt(val);
+            }
+            else if (self.Datatype() == "bool") {
+                return (val == "true") ? true : false;
+            }
             return val;
         }
 
