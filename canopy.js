@@ -1070,7 +1070,7 @@ function CanopyClient(origSettings) {
         }
 
         this.ConnectionStatus = function() {
-            if (initObj.connected) {
+            if (initObj.status.ws_connected) {
                 return "connected";
             }
             return "disconnected";
