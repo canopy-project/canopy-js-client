@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="canopy.js"></script>
+    <script src="ccs-simulator.js"></script>
+
+<script>
+var canopy = new CanopyClient();
+
+acct = canopy.Account("me");
+
+acct.On("change", function() {
+    var username = acct.Username();
+    if (username.error != null) {
+        alert(username.error);
+        return;
+    }
+    alert(username.value);
+
+    var email = acct.Email();
+    if (username.error != null) {
+        alert(username.error);
+        return;
+    }
+    alert(email.value);
+});
+
+acct.On("device-loaded", function(device) {
+    device.vars.temperature.Value(4.3);
+    alert(device.vars.temperature.Value());
+});
+
+canopy.Sync();
+
+</script>
+    </script>
+</head>
+<body>
+<div id=main></div>
+</body>
+</html>

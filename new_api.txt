@@ -1,0 +1,61 @@
+REST
+
+    Devices:
+    /<UUID>
+
+    Device via alias
+    /<user>/<device_name>
+
+
+Javascript
+
+    canopy = new CanopyClient({
+        "cloud-host" : "canopy.link"
+    })
+
+Devices
+
+    canopy.greg.SmartFan.gps.longitude()
+
+    smartFan   // Device object
+    smartFan.info().uuid() // Device UUID
+    smartFan.info().name() // Device Name
+    smartFan.info().name("foobar") // Change device name
+    smartFan.info().locationNote() // Device Location note
+    smartFan.info().isConnected()
+    smartFan.info().properties()[0]
+    smartFan.speed() // get current property or sensor value
+    smartFan.speed(4) // set sensor value
+    smartFan.speed(4, {
+        onSuccess: function()
+    }) // Set current speed with callbacks
+    smartFan.speed()
+    smartFan.speed.value()
+    smartFan.speed.value(4)
+    smartFan.speed.minValue()
+    smartFan.speed.datatype()
+
+    smartFan.property("speed").minValue()  // PROBLEM: info is object
+    
+
+    smartFan.speed.maxValue()
+    smartFan.speed.value()
+
+    canopy.devices("UUID")
+    canopy.devices()
+
+
+    mySmartFan.property("gps").property("longitude");
+    mySmartFan.gps.longitude.value(4);
+
+
+    //--------------------------------------
+    CONCRETE CHANGES:
+    setTargetValue(X) -> value(X)
+
+
+    thingamabob.io
+
+    things.wemo.power()
+    things.wemo.power()
+    huelightbulb.on()

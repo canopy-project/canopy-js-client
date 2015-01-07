@@ -339,6 +339,11 @@ function SDDLParser() {
         return validValues[x] !== undefined;
     }
 
+    function _IsValidRegex(x) {
+        // TODO: implement
+        return true;
+    }
+
     function _IsValidControlType(x) {
         var validValues = {
             "trigger" : 1,
@@ -667,6 +672,63 @@ function SDDLParser() {
     }
 }
 
+function SDDLMarshaller() {
+
+    /* <prop> is an SDDLSensor, SDDLControl, or SDDLClass */
+    this.marshall = function(prop, showDefaults) {
+        var out = "";
+        if (prop.isSensor()) {
+            out = "\"sensor " + prop.name() + "\" : { \n";
+            if (showDefaults || prop.datatype() != "float32") {
+                out += "    \"datatype\" : \"" + prop.datatype() + "\",\n";
+            }
+            if (showDefaults || prop.minValue() != null) {
+                out += "    \"min-value\" : \"" + prop.minValue() + "\",\n";
+            }
+            if (showDefaults || prop.maxValue() != null) {
+                out += "    \"max-value\" : \"" + prop.maxValue() + "\",\n";
+            }
+            if (showDefaults || prop.numericDisplayHint() != "normal") {
+                out += "    \"numeric-display-hint\" : \"" + prop.numericDisplayHint() + "\",\n";
+            }
+            if (showDefaults || prop.regex() != null) {
+                out += "    \"regex\" : \"" + prop.regex() + "\",\n";
+            }
+            if (showDefaults || prop.units() != null) {
+                out += "    \"units\" : \"" + prop.units() + "\",\n";
+            }
+            out = out.substring(0, out.length - 2) + "\n"; // remove trailing comma
+            out += "}";
+        }
+        else if (prop.isControl()) {
+            out = "\"control " + prop.name() + "\" : { \n";
+            if (showDefaults || prop.control_type() != "parameter") {
+                out += "    \"control-type\" : \"" + prop.controlType() + "\",\n";
+            }
+            if (showDefaults || prop.datatype() != "float32") {
+                out += "    \"datatype\" : \"" + prop.datatype() + "\",\n";
+            }
+            if (showDefaults || prop.minValue() != null) {
+                out += "    \"min-value\" : \"" + prop.minValue() + "\",\n";
+            }
+            if (showDefaults || prop.maxValue() != null) {
+                out += "    \"max-value\" : \"" + prop.maxValue() + "\",\n";
+            }
+            if (showDefaults || prop.numericDisplayHint() != "normal") {
+                out += "    \"numeric-display-hint\" : \"" + prop.numericDisplayHint() + "\",\n";
+            }
+            if (showDefaults || prop.regex() != null) {
+                out += "    \"regex\" : \"" + prop.regex() + "\",\n";
+            }
+            if (showDefaults || prop.units() != null) {
+                out += "    \"units\" : \"" + prop.units() + "\",\n";
+            }
+            out = out.substring(0, out.length - 2) + "\n"; // remove trailing comma
+            out += "}";
+        }
+        return out;
+    }
+}
 
 
     /*
@@ -760,7 +822,7 @@ function CanopyClient(origSettings) {
         cloudHTTPPort : 80,
         cloudHTTPSPort : 433,
         cloudUseHTTPS : false,
-        cloudUrlPrefix : ""
+        cloudUrlPrefix : "/api"
     }, origSettings);
 
     var self = this;
@@ -779,6 +841,29 @@ function CanopyClient(origSettings) {
             settings.cloudHost + ":" +
             (settings.cloudUseHTTPS ? settings.cloudHTTPSPort : settings.cloudHTTPPort) +
             settings.cloudUrlPrefix;
+    }
+
+    this.lookupAnonDevice = function(uuid, onSuccess, onFailure) {
+        $.ajax({
+            type: "GET",
+            dataType : "json",
+            url: self.apiBaseUrl() + "/device/" + uuid,
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            var dev = new CanopyDevice(data);
+            if (onSuccess) {
+                onSuccess(dev);
+            }
+        })
+        .fail(function() {
+            if (onFailure) {
+                onFailure();
+            }
+        });
     }
 
     this.onLogin = function(callback) {
@@ -1119,6 +1204,11 @@ function CanopyClient(origSettings) {
             return initObj.friendly_name;
         }
 
+        this.notifications = function() {
+            // TODO: Wrap in object?
+            return initObj.notifications;
+        }
+
         this.locationNote = function() {
             return initObj.location_note ? initObj.location_note : "Home";
         }
@@ -1138,6 +1228,36 @@ function CanopyClient(origSettings) {
             obj = {
                 __friendly_name: params.friendlyName,
                 __location_note: params.locationNote
+            };
+            $.ajax({
+                type: "POST",
+                dataType : "json",
+                url: selfClient.apiBaseUrl() + "/device/" + self.id(),
+                data: JSON.stringify(obj),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            })
+            .done(function() {
+                if (params.onSuccess)
+                    params.onSuccess();
+            })
+            .fail(function() {
+                if (params.onError)
+                    params.onError();
+            });
+        }
+
+        /*
+         * params:
+         *  sddlObj -- The property to add/update.
+         *  onSuccess
+         *  onError
+         */
+        this.updateSDDL = function(params) {
+            obj = {
+                "__sddl_update" : params.sddlObj
             };
             $.ajax({
                 type: "POST",
@@ -1289,7 +1409,11 @@ function CanopyClient(origSettings) {
         };
 
         this.sddl = function() {
-            return sddlSensor;
+            return sddlControl;
+        }
+
+        this.sddlString = function() {
+            return new SDDLMarshaller().marshall(this.sddl(), true);
         }
 
         /*
@@ -1369,6 +1493,10 @@ function CanopyClient(origSettings) {
 
         this.sddl = function() {
             return sddlSensor;
+        }
+
+        this.sddlString = function() {
+            return new SDDLMarshaller().marshall(this.sddl(), true);
         }
     }
 
