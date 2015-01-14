@@ -203,7 +203,8 @@ function SDDLParser() {
                 if (child.error != null) {
                     return {value: null, error: child.error};
                 }
-                out.priv.children[child.value.Name()] = child.value;
+                out.priv.children[child.value.Name()] = child.value; // Index by name
+                out.priv.children[out.priv.numChildren] = child.value; // Also index by int
                 out.priv.numChildren++;
             }
         }
@@ -745,9 +746,11 @@ function CanopyClient(origSettings) {
         var vars = [];
         var varsByName = {};
 
-        for (key in varsObjRoot) {
-            keys.push(key);
-            newVar = new CloudVar(device, sddlVarDefRoot.StructMember(key), varsObjRoot[key]);
+        var numVarDefs = sddlVarDefRoot.NumStructMembers();
+        for (var i = 0; i < numVarDefs; i++) {
+            var varDef = sddlVarDefRoot.StructMember(i);
+            keys.push(varDef.Name());
+            newVar = new CloudVar(device, varDef, varsObjRoot[varDef.Name()]);
             vars.push(newVar);
             varsByName[newVar.Name()] = newVar;
         }
@@ -772,14 +775,17 @@ function CanopyClient(origSettings) {
         }
     }
 
+    // <valueJsonObj> may be undefined.
     function CloudVar(device, sddlVarDef, valueJsonObj) {
         var priv = {};
         var self=this;
         this.priv = priv;
 
         // Parse
-        priv.value = valueJsonObj.v;
-        priv.timestamp = valueJsonObj.t;
+        if (valueJsonObj) {
+            priv.value = valueJsonObj.v;
+            priv.timestamp = valueJsonObj.t;
+        }
         priv.sddl = sddlVarDef;
 
         var _ConvertValue = function(val) {
