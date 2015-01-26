@@ -303,7 +303,7 @@ function CanopyClient(origSettings) {
     }
 
     this.ApiBaseUrl = function() {
-        return "http://" + this.priv.cloudHost + "/api";
+        return "//" + this.priv.cloudHost + "/api";
     }
 
     this.CloudHost = function() {
