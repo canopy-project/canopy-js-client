@@ -493,6 +493,74 @@ function CanopyClient(origSettings) {
         });
     }
 
+    // Request Password Reset
+    this.RequestPasswordReset = function(params) {
+        $.ajax({
+            type: "POST",
+            data: JSON.stringify({ "username" : params["username"]}),
+            dataType : "json",
+            url: self.ApiBaseUrl() + "/reset_password",
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            // Update each synchronized account object
+            if (data['result'] == "ok") {
+                if (params.onSuccess)
+                    params.onSuccess();
+            } else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            /* TODO: determine error */
+            if (params.onError)
+                params.onError("unknown");
+        });
+    }
+
+    // Reset Password
+    this.ResetPassword = function(params) {
+        if (params["password"] != params["confirm_password"]) {
+            if (params.onError())
+                params.onError();
+            return;
+        }
+        $.ajax({
+            type: "POST",
+            data: JSON.stringify({ 
+                "username" : params["username"],
+                "password" : params["password"],
+                "code" : params["code"]
+            }),
+            dataType : "json",
+            url: self.ApiBaseUrl() + "/reset_password",
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        })
+        .done(function(data, textStatus, jqXHR) {
+            // Update each synchronized account object
+            if (data['result'] == "ok") {
+                if (params.onSuccess)
+                    params.onSuccess();
+            } else {
+                if (params.onError)
+                    params.onError("unknown");
+            }
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            /* TODO: determine error */
+            if (params.onError)
+                params.onError("unknown");
+        });
+    }
+
+
     // Synchronize with the server
     this.Sync = function(params) {
         var trackAccts = this.priv.trackedAccounts;
