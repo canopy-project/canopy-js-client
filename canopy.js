@@ -639,7 +639,7 @@ function CanopyClient(origSettings) {
         $.ajax({
             type: "GET",
             dataType : "json",
-            url: self.ApiBaseUrl() + "/me",
+            url: self.ApiBaseUrl() + "/user/self",
             xhrFields: {
                  withCredentials: true
             },
@@ -749,7 +749,7 @@ function CanopyClient(origSettings) {
                 type: "POST",
                 dataType : "json",
                 data: JSON.stringify(obj),
-                url: selfClient.ApiBaseUrl() + "/me",
+                url: selfClient.ApiBaseUrl() + "/user/self",
                 xhrFields: {
                      withCredentials: true
                 },
