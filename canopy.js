@@ -315,7 +315,7 @@ function CanopyClient(origSettings) {
             type: "POST",
             dataType : "json",
             contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            url: self.ApiBaseUrl() + "/create_account",
+            url: self.ApiBaseUrl() + "/create_user",
             data: JSON.stringify({
                 username : params.username, 
                 email: params.email, 
