@@ -1010,13 +1010,13 @@ function CanopyClient(origSettings) {
 
         this.Vars = function() {
             // TODO cache results
-            if (!initObj.sddl) {
+            if (!initObj.var_decls) {
                 return undefined;
             }
             if (!initObj.vars) {
                 return undefined;
             }
-            result = (new SDDLParser()).Parse(initObj.sddl);
+            result = (new SDDLParser()).Parse(initObj.var_decls);
             if (result.error != null) {
                 return undefined;
             }
@@ -1067,8 +1067,8 @@ function CanopyClient(origSettings) {
          */
         this.setSettings = function(params) {
             obj = {
-                __friendly_name: params.friendlyName,
-                __location_note: params.locationNote
+                friendly_name: params.friendlyName,
+                location_note: params.locationNote
             };
             initObj.friendly_name = params.friendlyName;
             initObj.location_note = params.locationNote;
