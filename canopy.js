@@ -315,7 +315,7 @@ function CanopyClient(origSettings) {
             type: "POST",
             dataType : "json",
             contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            url: self.ApiBaseUrl() + "/create_account",
+            url: self.ApiBaseUrl() + "/create_user",
             data: JSON.stringify({
                 username : params.username, 
                 email: params.email, 
@@ -639,7 +639,7 @@ function CanopyClient(origSettings) {
         $.ajax({
             type: "GET",
             dataType : "json",
-            url: self.ApiBaseUrl() + "/me",
+            url: self.ApiBaseUrl() + "/user/self",
             xhrFields: {
                  withCredentials: true
             },
@@ -749,7 +749,7 @@ function CanopyClient(origSettings) {
                 type: "POST",
                 dataType : "json",
                 data: JSON.stringify(obj),
-                url: selfClient.ApiBaseUrl() + "/me",
+                url: selfClient.ApiBaseUrl() + "/user/self",
                 xhrFields: {
                      withCredentials: true
                 },
@@ -771,7 +771,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "GET",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/me/devices",
+                url: selfClient.ApiBaseUrl() + "/user/self/devices",
                 xhrFields: {
                      withCredentials: true
                 },
@@ -1010,13 +1010,13 @@ function CanopyClient(origSettings) {
 
         this.Vars = function() {
             // TODO cache results
-            if (!initObj.sddl) {
+            if (!initObj.var_decls) {
                 return undefined;
             }
             if (!initObj.vars) {
                 return undefined;
             }
-            result = (new SDDLParser()).Parse(initObj.sddl);
+            result = (new SDDLParser()).Parse(initObj.var_decls);
             if (result.error != null) {
                 return undefined;
             }
@@ -1067,8 +1067,8 @@ function CanopyClient(origSettings) {
          */
         this.setSettings = function(params) {
             obj = {
-                __friendly_name: params.friendlyName,
-                __location_note: params.locationNote
+                friendly_name: params.friendlyName,
+                location_note: params.locationNote
             };
             initObj.friendly_name = params.friendlyName;
             initObj.location_note = params.locationNote;
