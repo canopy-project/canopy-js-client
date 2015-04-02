@@ -771,7 +771,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "GET",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/me/devices",
+                url: selfClient.ApiBaseUrl() + "/user/self/devices",
                 xhrFields: {
                      withCredentials: true
                 },
