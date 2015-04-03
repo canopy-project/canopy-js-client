@@ -1066,12 +1066,15 @@ function CanopyClient(origSettings) {
          *      onError
          */
         this.setSettings = function(params) {
-            obj = {
-                friendly_name: params.friendlyName,
-                location_note: params.locationNote
-            };
-            initObj.friendly_name = params.friendlyName;
-            initObj.location_note = params.locationNote;
+            obj = {};
+            if (params.friendlyName !== undefined) {
+                obj["friendly_name"] = params.friendlyName;
+                initObj.friendly_name = params.friendlyName;
+            }
+            if (params.locationNote !== undefined) {
+                obj["location_note"] = params.locationNote;
+                initObj.location_note = params.locationNote;
+            }
             $.ajax({
                 type: "POST",
                 dataType : "json",
