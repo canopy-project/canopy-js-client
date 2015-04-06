@@ -771,7 +771,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "GET",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/user/self/devices",
+                url: selfClient.ApiBaseUrl() + "/user/self/devices?timestamps=rfc3339",
                 xhrFields: {
                      withCredentials: true
                 },
@@ -898,7 +898,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "GET",
                 dataType: "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "/" + this.Name(),
+                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "/" + this.Name() + "?timestamps=rfc3339",
                 xhrFields: {
                      withCredentials: true
                 },
@@ -944,7 +944,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID(),
+                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "?timestamps=rfc3339",
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
@@ -1078,7 +1078,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID() + "?timestamps=rfc3339",
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
@@ -1108,7 +1108,7 @@ function CanopyClient(origSettings) {
             $.ajax({
                 type: "POST",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID(),
+                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID() + "?timestamps=rfc3339",
                 data: JSON.stringify(obj),
                 xhrFields: {
                      withCredentials: true
