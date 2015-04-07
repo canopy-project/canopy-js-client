@@ -714,14 +714,9 @@ function CanopyClient(origSettings) {
         }
 
         this.Quotas = function() {
-            if (this.Username().value == "gregp") {
-                // hack!!
-                return {
-                    "devices": 100000
-                };
-            }
+            // Hack: temporarily disable quotas
             return {
-                "devices": 10
+                "devices": 100000
             };
         }
 
@@ -768,10 +763,14 @@ function CanopyClient(origSettings) {
 
         this.fetchDevices = function(params) {
             /* TODO: Filter to only show devices for this account */
+            var url = selfClient.ApiBaseUrl() + "/user/self/devices?timestamps=rfc3339";
+            if (params.limit) {
+                url += "&limit=" + params.limit
+            }
             $.ajax({
                 type: "GET",
                 dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/user/self/devices?timestamps=rfc3339",
+                url: url,
                 xhrFields: {
                      withCredentials: true
                 },
