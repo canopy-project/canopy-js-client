@@ -1,0 +1,47 @@
+<html>
+<head>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="canopy_new.js"></script>
+</head>
+<body>
+Hi
+</body>
+<script>
+/*Canopy.initUserClient({
+    "auth-username" : "gregp", 
+    "auth-password" : "test1234",
+    "http-port" : 80,
+    "https-port" : 433,
+    "use-http" : true,
+    "skip-cert-check" : true,
+    "host" : "dev02.canopy.link"
+}).onDone(function(result, user) {
+});
+ */
+
+var canopy = Canopy.initContext();
+var remote = canopy.initRemote({
+    "auth-username" : "gregp", 
+    "auth-password" : "test1234",
+    "http-port" : 80,
+    "https-port" : 433,
+    "use-http" : true,
+    "skip-cert-check" : true,
+    "host" : "dev02.canopy.link"
+});
+
+remote.getSelfUser().onDone(function(result, user) {
+    if (result != CANOPY_SUCCESS) {
+        alert(result);
+        return;
+    }
+    /*alert(user.username());
+    alert(user.email());
+    alert(user.email());*/
+    user.devices().getMany(0, 10).onDone(function(result, devices) {
+        console.log(devices[0].id());
+    });
+});
+
+</script>
+</html>
