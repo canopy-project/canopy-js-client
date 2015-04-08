@@ -68,9 +68,11 @@ function CanopyModule() {
         });
     }
 
-    function CanopyBarrier(type) {
+    function CanopyBarrier() {
         var cb = null;
         var selfBarrier = this;
+        this._data = {};
+
         this.onDone = function(_cb) {
             cb = _cb;
             return self;
@@ -80,15 +82,7 @@ function CanopyModule() {
             if (!cb) {
                 return;
             }
-            if (type == "user") {
-                cb(selfBarrier._result, {user: selfBarrier._user});
-            } else if (type == "device_list") {
-                cb(selfBarrier._result, selfBarrier._devices);
-            } else if (type == "device_count") {
-                cb(selfBarrier._result, {count: selfBarrier._count });
-            } else {
-                cb(selfBarrier._result, {});
-            }
+            cb(selfBarrier._result, selfBarrier._data);
         }
     }
 
@@ -122,21 +116,20 @@ function CanopyModule() {
          * Returns CanopyBarrier
          */ 
         this.count = function() {
-            var barrier = new CanopyBarrier("device_count");
+            var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=0,0"
 
             httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
                     if (data['result'] != "ok") {
                         // TODO: proper error handling
-                        barrier._user = null;
                         barrier._result = CANOPY_ERROR_UNKNOWN;
                         barrier._signal();
                         return;
                     }
                     var devices = [];
                     var i;
-                    barrier._count = data.paging.total_count;
+                    barrier._data["count"] = data.paging.total_count;
                     barrier._result = CANOPY_SUCCESS;
                     barrier._signal();
                 }
@@ -156,14 +149,13 @@ function CanopyModule() {
          * Returns CanopyBarrier
          */ 
         this.getMany = function(start, count) {
-            var barrier = new CanopyBarrier("device_list");
+            var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count;
 
             httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
                     if (data['result'] != "ok") {
                         // TODO: proper error handling
-                        barrier._user = null;
                         barrier._result = CANOPY_ERROR_UNKNOWN;
                         barrier._signal();
                         return;
@@ -174,7 +166,7 @@ function CanopyModule() {
                         devices.push(new CanopyDevice(data['devices'][i]));
                     }
 
-                    barrier._devices = devices;
+                    barrier._data["devices"] = devices;
                     barrier._result = CANOPY_SUCCESS;
                     barrier._signal();
                 }
@@ -192,17 +184,19 @@ function CanopyModule() {
         }
 
         /* Returns CanopyBarrier */
-        this.login = function() {
-            // TODO: error if auth_type == BASIC //
-            var barrier = new CanopyBarrier("user");
-            var url = selfRemote.baseUrl() + "/api/login";
+        // TODO: Document
+        this.createUser = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/create_user";
+
+            // TODO: error out if passwords don't match
 
             httpJsonPost(url, {
-                username: initParams.auth_username,
-                password: initParams.auth_password,
-            }).done(function(data, textStatus, jqXHR) {
+                username: params.username, 
+                email: params.email, 
+                password : params.password
+            }).done(function(data) {
                 if (data.result != "ok") {
-                    barrier._user = null;
                     barrier._result = CANOPY_ERROR_UNKNOWN;
                     barrier._signal();
                     return;
@@ -213,12 +207,41 @@ function CanopyModule() {
                     email: data['email'],
                     remote: selfRemote
                 });
-                barrier._user = user;
+                barrier._data["user"] = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        /* Returns CanopyBarrier */
+        this.login = function(params) {
+            // TODO: Update doc now that we take username, password as params.
+            // TODO: error if auth_type == BASIC //
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/login";
+
+            httpJsonPost(url, {
+                username: params.username,
+                password: params.password,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._data["user"] = user;
                 barrier._result = CANOPY_SUCCESS;
                 barrier._signal();
             }).fail(function(jqXHR, textStatus, errorThrown) {
                 /* TODO: determine error */
-                barrier._user = null;
                 barrier._result = CANOPY_ERROR_UNKNOWN;
                 barrier._signal();
             });
@@ -229,13 +252,12 @@ function CanopyModule() {
         /* Returns CanopyBarrier */
         this.logout = function() {
             // TODO: error if auth_type == BASIC //
-            var barrier = new CanopyBarrier("default");
+            var barrier = new CanopyBarrier();
             var url = selfRemote.baseUrl() + "/api/logout";
 
             httpJsonPost(url, {
             }).done(function(data, textStatus, jqXHR) {
                 if (data.result != "ok") {
-                    barrier._user = null;
                     barrier._result = CANOPY_ERROR_UNKNOWN;
                     barrier._signal();
                     return;
@@ -244,7 +266,6 @@ function CanopyModule() {
                 barrier._signal();
             }).fail(function(jqXHR, textStatus, errorThrown) {
                 /* TODO: determine error */
-                barrier._user = null;
                 barrier._result = CANOPY_ERROR_UNKNOWN;
                 barrier._signal();
             });
@@ -256,13 +277,12 @@ function CanopyModule() {
         //
         // ex: remote.getSelfDevice().onDone(function(device) { alert("hi");})
         this.getSelfUser = function() {
-            var barrier = new CanopyBarrier("user");
+            var barrier = new CanopyBarrier();
             var url = selfRemote.baseUrl() + "/api/user/self";
 
             httpJsonGet(url
             ).done(function(data, textStatus, jqXHR) {
                 if (data.result != "ok") {
-                    barrier._user = null;
                     barrier._result = CANOPY_ERROR_UNKNOWN;
                     barrier._signal();
                     return;
@@ -273,12 +293,11 @@ function CanopyModule() {
                     email: data['email'],
                     remote: selfRemote
                 });
-                barrier._user = user;
+                barrier._data["user"] = user;
                 barrier._result = CANOPY_SUCCESS;
                 barrier._signal();
             }).fail(function(jqXHR, textStatus, errorThrown) {
                 /* TODO: determine error */
-                barrier._user = null;
                 barrier._result = CANOPY_ERROR_UNKNOWN;
                 barrier._signal();
             });
@@ -326,8 +345,17 @@ function CanopyModule() {
         }
     }
 
-    this.initContext = function(settings) {
-        return new CanopyContext(settings);
+    this.initContext = function() {
+        return new CanopyContext();
+    }
+
+    this.initUserClient = function(settings) {
+        var ctx = selfModule.initContext();
+        var remote = ctx.initRemote(settings);
+        var barrier = remote.getSelfUser();
+        barrier._data["ctx"] = ctx;
+        barrier._data["remote"] = remote;
+        return barrier;
     }
 }
 
