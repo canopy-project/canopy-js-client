@@ -344,8 +344,38 @@ function CanopyModule() {
             });
         }
 
+        // TODO: docuement
         this.remote = function() {
             return initParams.remote;
+        }
+
+        /* 
+         * Returns CanopyBarrier
+         */
+        this.validate = function(params) {
+            // TODO: Document both REST API and JS Client
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/activate";
+
+            console.log(params.username);
+            httpJsonPost(url, {
+                username: params.username,
+                code: params.code
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
     }
 
