@@ -52,6 +52,20 @@ function CanopyModule() {
         });
     }
 
+    function httpJsonPost(url, data) {
+        return $.ajax({
+            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+            type: "POST",
+            dataType : "json",
+            url: url,
+            data: JSON.stringify(data),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        });
+    }
+
     function CanopyBarrier(type) {
         var cb = null;
         var selfBarrier = this;
@@ -146,11 +160,72 @@ function CanopyModule() {
         }
     }
 
-    function CanopyRemote(params) {
+    function CanopyRemote(initParams) {
         var selfRemote = this;
         
         this.baseUrl = function() {
-            return "https://" + params.host;
+            return "https://" + initParams.host;
+        }
+
+        /* Returns CanopyBarrier */
+        this.login = function() {
+            // TODO: error if auth_type == BASIC //
+            var barrier = new CanopyBarrier("user");
+            var url = selfRemote.baseUrl() + "/api/login";
+
+            httpJsonPost(url, {
+                username: initParams.auth_username,
+                password: initParams.auth_password,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._user = null;
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._user = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._user = null;
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        /* Returns CanopyBarrier */
+        this.logout = function() {
+            // TODO: error if auth_type == BASIC //
+            var barrier = new CanopyBarrier("default");
+            var url = selfRemote.baseUrl() + "/api/logout";
+
+            httpJsonPost(url, {
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._user = null;
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._user = null;
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
 
         // Returns CanopyBarrier
@@ -160,26 +235,24 @@ function CanopyModule() {
             var barrier = new CanopyBarrier("user");
             var url = selfRemote.baseUrl() + "/api/user/self";
 
-            httpJsonGet(url).done(
-                function(data, textStatus, jqXHR) {
-                    if (data['result'] == "ok") {
-                        var user = new CanopyUser({
-                            validated: data['validated'],
-                            username: data['username'],
-                            email: data['email'],
-                            remote: selfRemote
-                        });
-                        barrier._user = user;
-                        barrier._result = CANOPY_SUCCESS;
-                    } else {
-                        // TODO: proper error handling
-                        barrier._user = null;
-                        barrier._result = CANOPY_ERROR_UNKNOWN;
-                    }
+            httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._user = null;
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
                     barrier._signal();
+                    return;
                 }
-            )
-            .fail(function(jqXHR, textStatus, errorThrown) {
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._user = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
                 /* TODO: determine error */
                 barrier._user = null;
                 barrier._result = CANOPY_ERROR_UNKNOWN;
