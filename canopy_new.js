@@ -41,6 +41,7 @@ function CanopyModule() {
     var selfModule = this;
 
     function httpJsonGet(url) {
+        // TODO: provide BASIC AUTH if necessary
         return $.ajax({
             type: "GET",
             dataType : "json",
@@ -53,6 +54,7 @@ function CanopyModule() {
     }
 
     function httpJsonPost(url, data) {
+        // TODO: provide BASIC AUTH if necessary
         return $.ajax({
             contentType: 'text/plain; charset=utf-8', /* Needed for safari */
             type: "POST",
@@ -79,11 +81,13 @@ function CanopyModule() {
                 return;
             }
             if (type == "user") {
-                cb(selfBarrier._result, selfBarrier._user);
+                cb(selfBarrier._result, {user: selfBarrier._user});
             } else if (type == "device_list") {
                 cb(selfBarrier._result, selfBarrier._devices);
+            } else if (type == "device_count") {
+                cb(selfBarrier._result, {count: selfBarrier._count });
             } else {
-                cb(selfBarrier._result);
+                cb(selfBarrier._result, {});
             }
         }
     }
@@ -118,7 +122,27 @@ function CanopyModule() {
          * Returns CanopyBarrier
          */ 
         this.count = function() {
-            // TODO implement
+            var barrier = new CanopyBarrier("device_count");
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=0,0"
+
+            httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._user = null;
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    var i;
+                    barrier._count = data.paging.total_count;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
         }
 
         /*
@@ -265,12 +289,18 @@ function CanopyModule() {
 
     function CanopyUser(initParams) {
         var selfUser=this;
+        var email;
+        var emailDirty = false;
 
         this.username = function() {
             return initParams.username;
         }
-        this.email = function() {
-            return initParams.email;
+        this.email = function(newEmail) {
+            if (newEmail !== undefined) {
+                email = newEmail;
+                emailDirty = true;
+            }
+            return email;
         }
         this.isValidated = function() {
             return initParams.validated;

@@ -4,7 +4,6 @@
 <script src="canopy_new.js"></script>
 </head>
 <body>
-Hi
 </body>
 <script>
 /*Canopy.initUserClient({
@@ -21,8 +20,6 @@ Hi
 
 var canopy = Canopy.initContext();
 var remote = canopy.initRemote({
-    "auth_username" : "gregp", 
-    "auth_password" : "test1234",
     "http_port" : 80,
     "https_port" : 433,
     "use_http" : true,
@@ -30,16 +27,18 @@ var remote = canopy.initRemote({
     "host" : "dev02.canopy.link"
 });
 
-remote.getSelfUser().onDone(function(result, user) {
+remote.getSelfUser().onDone(function(result, data) {
     if (result != CANOPY_SUCCESS) {
         alert(result);
         return;
     }
-    /*alert(user.username());
-    alert(user.email());
-    alert(user.email());*/
-    user.devices().getMany(0, 10).onDone(function(result, devices) {
+    /*user.devices().getMany(0, 10).onDone(function(result, devices) {
+        console.log("Hello " + user.username());
         console.log(devices[0].id());
+    });*/
+    data.user.devices().count().onDone(function(result, data2) {
+        console.log("Hello " + data.user.username());
+        console.log(data2.count);
     });
 });
 
