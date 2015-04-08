@@ -343,6 +343,10 @@ function CanopyModule() {
                 remote: initParams.remote
             });
         }
+
+        this.remote = function() {
+            return initParams.remote;
+        }
     }
 
     this.initContext = function() {
