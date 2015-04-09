@@ -108,6 +108,14 @@ function CanopyModule() {
         this.id = function() {
             return initParams.device_id;
         }
+
+        this.name = function() {
+            return initParams.friendly_name;
+        }
+
+        this.name = function() {
+            return initParams.friendly_name;
+        }
     }
 
     function CanopyDeviceQuery(initParams) {
@@ -136,6 +144,23 @@ function CanopyModule() {
             );
 
             return barrier;
+        }
+
+        /* 
+         * Returns new DeviceQuery.  Does not affect the DQ that this was
+         * called on.
+         */
+        this.filter = function(expr) {
+            var newFilters = [];
+            for (var i = 0; i < initParams.filters.length; i++) {
+                newFilters.push(initParams.filters[i]);
+            }
+            newFilters.push(expr);
+
+            /*return new CanopyDeviceQuery(
+                remote: initParams.remote,
+                filter: newFilters
+            );*/
         }
 
         /*
@@ -381,6 +406,15 @@ function CanopyModule() {
 
     this.initContext = function() {
         return new CanopyContext();
+    }
+
+    this.initDeviceClient = function(settings) {
+        var ctx = selfModule.initContext();
+        var remote = ctx.initRemote(settings);
+        var barrier = remote.getSelfUser();
+        barrier._data["ctx"] = ctx;
+        barrier._data["remote"] = remote;
+        return barrier;
     }
 
     this.initUserClient = function(settings) {
