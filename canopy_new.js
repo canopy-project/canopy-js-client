@@ -109,12 +109,71 @@ function CanopyModule() {
             return initParams.device_id;
         }
 
-        this.name = function() {
-            return initParams.friendly_name;
+        this.websocketConnected = function() {
+            return initParams.status.ws_connected ? true : false;
+        }
+
+        this.isActive = function() {
+            // TODO: Keep this function?
+            return (this.lastActivitySecondsAgo() != null && this.lastActivitySecondsAgo() < 60);
+        }
+
+        this.isInactive = function() {
+            // TODO: Keep this function?
+            return (this.lastActivitySecondsAgo() >= 60);
+        }
+
+        this.isNewlyCreated = function() {
+            return (this.lastActivityTime() == null);
+        }
+
+        this.lastActivitySecondsAgo = function() {
+            // TODO: implement
+        }
+
+        this.lastActivityTime = function() {
+            if (initObj['status']) {
+                return initObj['status'].last_activity_time;
+            }
+            /* TODO: Return NULL */
+            return undefined;
+        }
+
+        this.lastActivitySecondsAgo = function() {
+            if (initParams.status.last_activity_time) {
+                var d = new Date().setRFC3339(initParams.status.last_activity_time);
+                return (new Date() - d) / 1000;
+            } else {
+                return null;
+            }
+        }
+
+        this.locationNote = function() {
+            return initParams.location_note ? initParams.location_note : "";
         }
 
         this.name = function() {
             return initParams.friendly_name;
+        }
+
+        this.secretKey = function() {
+            return initObj.secret_key ? initObj.secret_key : "hidden";
+        }
+
+        this.syncWithRemote = function() {
+            // TODO: implement
+        }
+
+        this.updateToRemote = function() {
+            // TODO: implement
+        }
+
+        this.updateFromRemote = function() {
+            // TODO: implement
+        }
+
+        this.vars = function() {
+            // TODO: implement
         }
     }
 
