@@ -153,7 +153,7 @@ function SDDLParser() {
             };
         }
         return {
-            error: "Could not parse declstring"
+            error: "Could not parse declstring:" + declString
         };
     }
 
@@ -194,18 +194,19 @@ function SDDLParser() {
             else if (x == "units") {
                 out.priv.units = val;
             }
-            else if (x == "units") {
-                out.priv.units = val;
-            }
             else {
                 // only do this if it parses to a var declaration
                 var child = self.ParseVar(x, val);
-                if (child.error != null) {
-                    return {value: null, error: child.error};
+                if (child.error == null) {
+                    out.priv.children[child.value.Name()] = child.value; // Index by name
+                    out.priv.children[out.priv.numChildren] = child.value; // Also index by int
+                    out.priv.numChildren++;
                 }
-                out.priv.children[child.value.Name()] = child.value; // Index by name
-                out.priv.children[out.priv.numChildren] = child.value; // Also index by int
-                out.priv.numChildren++;
+                else {
+                    // could not understand field
+                    console.log("WARNING: Unexpected SDDL field: " + x);
+                }
+                
             }
         }
         return {value: out, error: null};
@@ -1018,6 +1019,7 @@ function CanopyClient(origSettings) {
             }
             result = (new SDDLParser()).Parse(initObj.var_decls);
             if (result.error != null) {
+                console.log("SDDL Parsing error: " + result.error);
                 return undefined;
             }
             sddlVarDef = result.value;
