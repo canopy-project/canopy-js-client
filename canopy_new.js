@@ -558,6 +558,48 @@ function CanopyModule() {
         var email;
         var emailDirty = false;
 
+        /*
+         * TODO: Server code & API needs to change.  We shouldn't return the
+         * whole list of devices, because there might be 1M+ of them.  Instead,
+         * we should assign all of the newly created devices a "batch #" and
+         * return a DeviceQuery object that uses that batch as a filter.
+         */
+        this.createDevices = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/create_devices";
+
+            httpJsonPost(url, {
+                quantity: params.quantity,
+                friendly_names: params.names
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._data["devices"] = [];
+                for (var i = 0; i < data.devices.length; i++) {
+                    var info = data.devices[i];
+                    var device = new CanopyDevice({
+                        name: info.friendly_name,
+                        device_id: info.device_id,
+                        secret_key: info.secret_key,
+                        location_note: data.location_note,
+                        remote: initParams.remote
+                    });
+                    barrier._data["devices"].push(device);
+                }
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
         this.username = function() {
             return initParams.username;
         }
@@ -649,4 +691,4 @@ function CanopyModule() {
     }
 }
 
-Canopy = new CanopyModule()
+Canopy = new CanopyModule();
