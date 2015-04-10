@@ -36,6 +36,7 @@ var CANOPY_ERROR_BUFFER_TOO_SMALL = 14;
 var CANOPY_ERROR_JSON = 15;
 var CANOPY_ERROR_NETWORK = 16;
 var CANOPY_ERROR_SHUTDOWN = 17;
+var CANOPY_ERROR_NOT_FOUND = 18;
 
 function CanopyModule() {
     var selfModule = this;
@@ -168,7 +169,7 @@ function CanopyModule() {
         }
 
         this.secretKey = function() {
-            return initObj.secret_key ? initObj.secret_key : "hidden";
+            return initParams.secret_key ? initParams.secret_key : "hidden";
         }
 
         function constructPayload() {
@@ -273,6 +274,7 @@ function CanopyModule() {
     }
 
     function CanopyDeviceQuery(initParams) {
+        var selfDQ = this;
 
         /*
          * Returns CanopyBarrier
@@ -321,7 +323,65 @@ function CanopyModule() {
          * Returns CanopyBarrier
          */ 
         this.get = function(indexOrId) {
-            // TODO implement
+            var barrier = new CanopyBarrier();
+
+            function isInteger(n) {
+                return n === +n && n === (n|0);
+            }
+
+            if (isInteger(indexOrId)) {
+                selfDQ.getMany(indexOrId, 1).onDone(function(result, data) {
+                    if (result != CANOPY_SUCCESS) {
+                        barrier._result = result;
+                        barrier._data = data; /* is this correct? */
+                        barrier._signal();
+                        return;
+                    }
+
+                    if (data.devices.length == 0) {
+                        barrier._result = CANOPY_ERROR_NOT_FOUND;
+                        barrier._signal();
+                        return;
+                    } else if (data.devices.length > 1) {
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._data["device"] = data.devices[0];
+                    barrier._signal();
+                });
+                return barrier;
+            }
+
+            var url = initParams.remote.baseUrl() + "/api/device/" + indexOrId;
+
+            /* TODO: make sure filters are satisfied as well */
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+
+                    var device = new CanopyDevice({
+                        name: data.friendly_name,
+                        device_id: data.device_id,
+                        secret_key: data.secret_key,
+                        location_note: data.location_note,
+                        remote: initParams.remote
+                    });
+
+                    barrier._data["device"] = device;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
         }
 
         /*
@@ -508,7 +568,8 @@ function CanopyModule() {
                     name: data.friendly_name,
                     device_id: data.device_id,
                     location_note: data.location_note,
-                    remote: selfRemote
+                    remote: selfRemote,
+                    secret_key: data.secret_key
                 });
                 barrier._data["device"] = device;
                 barrier._result = CANOPY_SUCCESS;
@@ -584,9 +645,9 @@ function CanopyModule() {
                     var device = new CanopyDevice({
                         name: info.friendly_name,
                         device_id: info.device_id,
-                        secret_key: info.secret_key,
                         location_note: data.location_note,
-                        remote: initParams.remote
+                        remote: initParams.remote,
+                        secret_key: info.secret_key
                     });
                     barrier._data["devices"].push(device);
                 }
