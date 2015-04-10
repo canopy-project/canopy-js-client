@@ -105,6 +105,13 @@ function CanopyModule() {
     }
 
     function CanopyDevice(initParams) {
+        var device_id = initParams.device_id;
+        var nameDirty = false;
+        var name = initParams.name;
+        var locationNote = initParams.location_note;
+        var locationNoteDirty = false;
+        var selfDevice=this;
+
         this.id = function() {
             return initParams.device_id;
         }
@@ -152,24 +159,112 @@ function CanopyModule() {
             return initParams.location_note ? initParams.location_note : "";
         }
 
-        this.name = function() {
-            return initParams.friendly_name;
+        this.name = function(newName) {
+            if (newName !== undefined) {
+                name = newName;
+                nameDirty = true;
+            }
+            return name;
         }
 
         this.secretKey = function() {
             return initObj.secret_key ? initObj.secret_key : "hidden";
         }
 
+        function constructPayload() {
+            var payload = {}
+            console.log("nameDirty" + nameDirty);
+            if (nameDirty) {
+                payload["friendly_name"] = name;
+                nameDirty = false; /* TODO: only clear on success */
+            }
+            if (locationNoteDirty) {
+                payload["location_note"] = locationNote;
+                locationNoteDirty = false;
+            }
+            return payload;
+        }
+
+        function updateFromPayload(resp) {
+            if (resp["friendly_name"]) {
+                name = resp["friendly_name"];
+            }
+            if (resp["location_note"]) {
+                locationNote = resp["location_note"];
+            }
+            if (resp["status"].last_activity_time) {
+                lastActivityTime = resp["status"].last_activity_time;
+            }
+        }
+
         this.syncWithRemote = function() {
-            // TODO: implement
+            payload = constructPayload();
+            console.log(payload);
+
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+
+            initParams.remote._httpJsonPost(url, payload).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    updateFromPayload(data);
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
         }
 
         this.updateToRemote = function() {
-            // TODO: implement
+            payload = constructPayload();
+
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+
+            initParams.remote._httpJsonPost(url, payload).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
         }
 
         this.updateFromRemote = function() {
-            // TODO: implement
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    updateFromPayload(data);
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
         }
 
         this.vars = function() {
@@ -186,7 +281,7 @@ function CanopyModule() {
             var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=0,0"
 
-            httpJsonGet(url).done(
+            initParams.remote._httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
                     if (data['result'] != "ok") {
                         // TODO: proper error handling
@@ -236,7 +331,7 @@ function CanopyModule() {
             var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count;
 
-            httpJsonGet(url).done(
+            initParams.remote._httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
                     if (data['result'] != "ok") {
                         // TODO: proper error handling
@@ -262,6 +357,44 @@ function CanopyModule() {
 
     function CanopyRemote(initParams) {
         var selfRemote = this;
+
+        this._httpJsonGet = function(url) {
+            var options = {
+                type: "GET",
+                dataType : "json",
+                url: url,
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            };
+            if (initParams.auth_type == "basic") {
+                options["headers"] = {
+                    "Authorization": "Basic " + btoa(initParams.auth_username + ":" + initParams.auth_password)
+                }
+            }
+            return $.ajax(options);
+        }
+
+        this._httpJsonPost = function(url, data) {
+            var options = {
+                contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+                type: "POST",
+                dataType : "json",
+                url: url,
+                data: JSON.stringify(data),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            };
+            if (initParams.auth_type == "basic") {
+                options["headers"] = {
+                    "Authorization": "Basic " + btoa(initParams.auth_username + ":" + initParams.auth_password)
+                }
+            }
+            return $.ajax(options);
+        }
         
         this.baseUrl = function() {
             return "https://" + initParams.host;
@@ -358,13 +491,43 @@ function CanopyModule() {
         }
 
         // Returns CanopyBarrier
-        //
-        // ex: remote.getSelfDevice().onDone(function(device) { alert("hi");})
+        this.getSelfDevice = function() {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/device/self";
+
+            selfRemote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                console.log("FETCH");
+                console.log(data);
+                var device = new CanopyDevice({
+                    name: data.friendly_name,
+                    device_id: data.device_id,
+                    location_note: data.location_note,
+                    remote: selfRemote
+                });
+                barrier._data["device"] = device;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns CanopyBarrier
         this.getSelfUser = function() {
             var barrier = new CanopyBarrier();
             var url = selfRemote.baseUrl() + "/api/user/self";
 
-            httpJsonGet(url
+            selfRemote._httpJsonGet(url
             ).done(function(data, textStatus, jqXHR) {
                 if (data.result != "ok") {
                     barrier._result = CANOPY_ERROR_UNKNOWN;
@@ -470,7 +633,7 @@ function CanopyModule() {
     this.initDeviceClient = function(settings) {
         var ctx = selfModule.initContext();
         var remote = ctx.initRemote(settings);
-        var barrier = remote.getSelfUser();
+        var barrier = remote.getSelfDevice();
         barrier._data["ctx"] = ctx;
         barrier._data["remote"] = remote;
         return barrier;

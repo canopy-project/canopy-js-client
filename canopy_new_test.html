@@ -18,7 +18,7 @@
 });
  */
 
-var canopy = Canopy.initContext();
+/*var canopy = Canopy.initContext();
 var remote = canopy.initRemote({
     "http_port" : 80,
     "https_port" : 433,
@@ -32,15 +32,31 @@ remote.getSelfUser().onDone(function(result, data) {
         alert(result);
         return;
     }
-    /*user.devices().getMany(0, 10).onDone(function(result, devices) {
-        console.log("Hello " + user.username());
-        console.log(devices[0].id());
-    });*/
     data.user.devices().count().onDone(function(result, data2) {
         console.log("Hello " + data.user.username());
         console.log(data2.count);
     });
-});
+});*/
 
+Canopy.initDeviceClient({
+    "auth_type" : "basic", /* Your Device's UUID */
+    "auth_username" : "d036cc19-27bd-4437-8eaa-f1c7606a92bb", /* Your Device's UUID */
+    "auth_password" : "b4qJlrixRlsolbaqz5siJhxXjNKeb8e/",     /* Your Devices' Secret Key */
+    "host" : "dev02.canopy.link"
+}).onDone(function(result, data) {
+    if (result != CANOPY_SUCCESS) {
+        alert(data.errorMsg);
+        return;
+    }
+    alert("Hi " + data.device.name());
+    data.device.name("Anchovy");
+    data.device.syncWithRemote().onDone(function(result, data2) {
+        if (result != CANOPY_SUCCESS) {
+            alert(data2.errorMsg);
+            return;
+        }
+        alert("You are now " + data.device.name());
+    });
+});
 </script>
 </html>
