@@ -105,6 +105,28 @@ function CanopyModule() {
         }
     }
 
+    function CanopyCloudVariable(initParams) {
+        function direction() {
+            return initParams.direction;
+        }
+
+        function datatype() {
+            return initParams.datatype;
+        }
+
+        function historicData() {
+        }
+
+        function lastRemoteValue() {
+        }
+
+        function lastUpdateTime() {
+        }
+
+        function value(newValue) {
+        }
+    }
+
     function CanopyDevice(initParams) {
         var device_id = initParams.device_id;
         var nameDirty = false;
@@ -115,10 +137,6 @@ function CanopyModule() {
 
         this.id = function() {
             return initParams.device_id;
-        }
-
-        this.websocketConnected = function() {
-            return initParams.status.ws_connected ? true : false;
         }
 
         this.isActive = function() {
@@ -136,7 +154,12 @@ function CanopyModule() {
         }
 
         this.lastActivitySecondsAgo = function() {
-            // TODO: implement
+            if (initParams.status.last_activity_time) {
+                var d = new Date().setRFC3339(initParams.status.last_activity_time);
+                return (new Date() - d) / 1000;
+            } else {
+                return null;
+            }
         }
 
         this.lastActivityTime = function() {
@@ -147,17 +170,12 @@ function CanopyModule() {
             return undefined;
         }
 
-        this.lastActivitySecondsAgo = function() {
-            if (initParams.status.last_activity_time) {
-                var d = new Date().setRFC3339(initParams.status.last_activity_time);
-                return (new Date() - d) / 1000;
-            } else {
-                return null;
+        this.locationNote = function(newLocationNote) {
+            if (newLocationNote !== undefined) {
+                locationNote = newLocationNote;
+                locationNoteDirty = true;
             }
-        }
-
-        this.locationNote = function() {
-            return initParams.location_note ? initParams.location_note : "";
+            return locationNote;
         }
 
         this.name = function(newName) {
@@ -171,6 +189,7 @@ function CanopyModule() {
         this.secretKey = function() {
             return initParams.secret_key ? initParams.secret_key : "hidden";
         }
+
 
         function constructPayload() {
             var payload = {}
@@ -203,7 +222,7 @@ function CanopyModule() {
             console.log(payload);
 
             var barrier = new CanopyBarrier();
-            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id() + "?timestamps=rfc3339";
 
             initParams.remote._httpJsonPost(url, payload).done(
                 function(data, textStatus, jqXHR) {
@@ -268,9 +287,15 @@ function CanopyModule() {
             return barrier;
         }
 
+        /* TODO: document */
         this.vars = function() {
             // TODO: implement
         }
+
+        this.websocketConnected = function() {
+            return initParams.status.ws_connected ? true : false;
+        }
+
     }
 
     function CanopyDeviceQuery(initParams) {
@@ -355,7 +380,7 @@ function CanopyModule() {
                 return barrier;
             }
 
-            var url = initParams.remote.baseUrl() + "/api/device/" + indexOrId;
+            var url = initParams.remote.baseUrl() + "/api/device/" + indexOrId + "?timestamps=rfc3339";
 
             /* TODO: make sure filters are satisfied as well */
             initParams.remote._httpJsonGet(url).done(
@@ -368,11 +393,15 @@ function CanopyModule() {
                     }
 
                     var device = new CanopyDevice({
-                        name: data.friendly_name,
                         device_id: data.device_id,
-                        secret_key: data.secret_key,
                         location_note: data.location_note,
-                        remote: initParams.remote
+                        name: data.friendly_name,
+                        remote: initParams.remote,
+                        secret_key: data.secret_key,
+                        status: {
+                            last_activity_time: data.status.last_activity_time,
+                            ws_connected: data.status.ws_connected
+                        }
                     });
 
                     barrier._data["device"] = device;
@@ -569,7 +598,11 @@ function CanopyModule() {
                     device_id: data.device_id,
                     location_note: data.location_note,
                     remote: selfRemote,
-                    secret_key: data.secret_key
+                    secret_key: data.secret_key,
+                    status: {
+                        last_activity_time: data.status.last_activity_time,
+                        ws_connected: data.status.ws_connected
+                    },
                 });
                 barrier._data["device"] = device;
                 barrier._result = CANOPY_SUCCESS;
