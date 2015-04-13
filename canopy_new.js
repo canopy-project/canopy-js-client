@@ -38,6 +38,10 @@ var CANOPY_ERROR_NETWORK = 16;
 var CANOPY_ERROR_SHUTDOWN = 17;
 var CANOPY_ERROR_NOT_FOUND = 18;
 
+var CANOPY_VAR_OUT = "out";
+var CANOPY_VAR_IN = "in";
+var CANOPY_VAR_INOUT = "inout";
+
 function CanopyModule() {
     var selfModule = this;
 
@@ -87,6 +91,92 @@ function CanopyModule() {
         }
     }
 
+    function CanopyCloudVariable(initDeclParams) {
+        var val;
+        var lastRemoteValue = null;
+        var lastRemoteUpdateTime = null;
+        var dirty = false;
+
+        this._updateFromRemote = function(t, v) {
+            lastRemoteValue = v;
+            lastRemoteUpdateTime = t;
+            val = v; /* TODO: always override? */
+            dirty = false /* TODO: always override? */
+        };
+
+        this.direction = function() {
+            return initDeclParams.direction;
+        }
+
+        this.datatype = function() {
+            return initDeclParams.datatype;
+        }
+
+        this.device = function() {
+            return initDeclParams.device;
+        }
+
+        // Returns barrier
+        this.historicData = function(startTime, endTime) {
+            var barrier = new CanopyBarrier();
+            console.log(initDeclParams);
+            var url = initDeclParams.remote.baseUrl() + "/api/device/" + this.device().id() + "/" + this.name();
+
+            initDeclParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    // TODO: Return result somehow
+                    barrier._data["samples"] = data.samples;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        this.isModified = function() {
+            return dirty;
+        }
+
+        // returns null if never set
+        this.lastRemoteValue = function() {
+            return lastRemoteValue;
+        }
+
+        // Returns null if never updated
+        this.lastRemoteUpdateTime = function() {
+            return lastRemoteUpdateTime;
+        }
+
+        this.lastRemoteUpdateSecondsAgo = function() {
+            var t = this.lastRemoteUpdateTime();
+            if (!t) {
+                return null;
+            }
+            var d = new Date().setRFC3339(t);
+            return (new Date() - d) / 1000;
+        }
+
+        this.name = function() {
+            return initDeclParams.name;
+        }
+
+        this.value = function(newValue) {
+            if (newValue !== undefined) {
+                val = newValue;
+                dirty = true;
+            }
+            return val;
+        }
+    }
+
     function CanopyContext() {
         var selfContext = this;
         var isShutdown = false;
@@ -105,35 +195,85 @@ function CanopyModule() {
         }
     }
 
-    function CanopyCloudVariable(initParams) {
-        function direction() {
-            return initParams.direction;
-        }
-
-        function datatype() {
-            return initParams.datatype;
-        }
-
-        function historicData() {
-        }
-
-        function lastRemoteValue() {
-        }
-
-        function lastUpdateTime() {
-        }
-
-        function value(newValue) {
-        }
-    }
-
     function CanopyDevice(initParams) {
         var device_id = initParams.device_id;
         var nameDirty = false;
         var name = initParams.name;
         var locationNote = initParams.location_note;
         var locationNoteDirty = false;
-        var selfDevice=this;
+        var selfDevice = this;
+        var varList = [];
+
+        // Returns list of CanopyCloudVariables, or null on error
+        function parseAndMergeVarDecls(varDecls, varValues) {
+            for (key in varDecls) {
+                if (varDecls.hasOwnProperty(key)) {
+                    var parts = key.split(" ");
+                    if (parts.length != 3) {
+                        console.log("Error parsing var decl " + key);
+                        return null;
+                    }
+                    var direction = parts[0];
+                    var datatype = parts[1];
+                    var name = parts[2];
+
+                    // TODO: validate input
+                   
+                    var cloudVar = selfDevice.varByName(name);
+                    if (cloudVar !== null) {
+                        // Device already has this cloud variable.  Skip it.
+                        if (cloudVar.datatype() != datatype) {
+                            // TODO: What to do here?
+                            alert("Variable Datatype changed!");
+                        }
+                        if (cloudVar.direction() != direction) {
+                            // TODO: What to do here?
+                            alert("Variable Datatype changed!");
+                        }
+                        continue;
+                    }
+
+                    // create the cloud variable
+                    cloudVar = new CanopyCloudVariable({
+                        direction: direction,
+                        datatype: datatype,
+                        device: selfDevice,
+                        remote: initParams.remote,
+                        name: name
+                    });
+                    if (varValues !== undefined) {
+                        var timestampAndValue = varValues[cloudVar.name()];
+                        if (timestampAndValue !== undefined) {
+                            cloudVar._updateFromRemote(
+                                timestampAndValue.t,
+                                timestampAndValue.v
+                            );
+                        }
+                    }
+
+                    // add it to the list:
+                    varList.push(cloudVar);
+                }
+            }
+        }
+
+        function updateFromPayload(resp) {
+            if (resp["friendly_name"]) {
+                name = resp["friendly_name"];
+            }
+            if (resp["location_note"]) {
+                locationNote = resp["location_note"];
+            }
+            if (resp["status"].last_activity_time) {
+                lastActivityTime = resp["status"].last_activity_time;
+            }
+            if (resp["var_decls"]) {
+                parseAndMergeVarDecls(resp["var_decls"], resp["vars"]);
+            }
+            if (resp["vars"]) {
+                updateVarValues(resp["vars"]);
+            }
+        }
 
         this.id = function() {
             return initParams.device_id;
@@ -202,18 +342,26 @@ function CanopyModule() {
                 payload["location_note"] = locationNote;
                 locationNoteDirty = false;
             }
+            // TODO: Send any newly declared Cloud Variables
+            // TODO: Send any modified var values.
+            payload["vars"] = {};
+            var cloudVars = selfDevice.vars();
+            for (var i = 0; i < cloudVars.length; i++) {
+                var cloudVar = cloudVars[i];
+                if (cloudVar.isModified()) {
+                    payload["vars"][cloudVar.name()] = cloudVar.value();
+                }
+            }
             return payload;
         }
 
-        function updateFromPayload(resp) {
-            if (resp["friendly_name"]) {
-                name = resp["friendly_name"];
-            }
-            if (resp["location_note"]) {
-                locationNote = resp["location_note"];
-            }
-            if (resp["status"].last_activity_time) {
-                lastActivityTime = resp["status"].last_activity_time;
+        function updateVarValues(varsPayload) {
+            for (key in varsPayload) {
+                if (varsPayload.hasOwnProperty(key)) {
+                    var cloudVar = selfDevice.varByName(key);
+                    var varPayload = varsPayload[key];
+                    cloudVar._updateFromRemote(varPayload.t, varPayload.v);
+                }
             }
         }
 
@@ -248,6 +396,8 @@ function CanopyModule() {
             var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
 
+            console.log("posting payload");
+            console.log(payload);
             initParams.remote._httpJsonPost(url, payload).done(
                 function(data, textStatus, jqXHR) {
                     if (data['result'] != "ok") {
@@ -287,15 +437,26 @@ function CanopyModule() {
             return barrier;
         }
 
-        /* TODO: document */
+        this.varByName = function(varName) {
+            for (var i = 0; i < varList.length; i++) {
+                if (varList[i].name() == varName) {
+                    return varList[i];
+                }
+            }
+            return null;
+        }
+
+        /* TODO: returns list of top-level vars */
         this.vars = function() {
-            // TODO: implement
+            return varList;
         }
 
         this.websocketConnected = function() {
             return initParams.status.ws_connected ? true : false;
         }
 
+        // Initialize
+        updateFromPayload(initParams);
     }
 
     function CanopyDeviceQuery(initParams) {
@@ -398,10 +559,9 @@ function CanopyModule() {
                         name: data.friendly_name,
                         remote: initParams.remote,
                         secret_key: data.secret_key,
-                        status: {
-                            last_activity_time: data.status.last_activity_time,
-                            ws_connected: data.status.ws_connected
-                        }
+                        status: data.status,
+                        var_decls: data.var_decls,
+                        vars: data.vars,
                     });
 
                     barrier._data["device"] = device;
@@ -431,7 +591,16 @@ function CanopyModule() {
                     var devices = [];
                     var i;
                     for (i = 0; i < data['devices'].length; i++) {
-                        devices.push(new CanopyDevice(data['devices'][i]));
+                        devices.push(new CanopyDevice({
+                            device_id: data['devices'][i].device_id,
+                            location_note: data['devices'][i].location_note,
+                            name: data['devices'][i].friendly_name,
+                            remote: initParams.remote,
+                            secret_key: data['devices'][i].secret_key,
+                            status: data['devices'][i].status,
+                            var_decls: data['devices'][i].var_decls,
+                            vars: data['devices'][i].vars
+                        }));
                     }
 
                     barrier._data["devices"] = devices;
@@ -594,15 +763,14 @@ function CanopyModule() {
                 console.log("FETCH");
                 console.log(data);
                 var device = new CanopyDevice({
-                    name: data.friendly_name,
                     device_id: data.device_id,
                     location_note: data.location_note,
+                    name: data.friendly_name,
                     remote: selfRemote,
                     secret_key: data.secret_key,
-                    status: {
-                        last_activity_time: data.status.last_activity_time,
-                        ws_connected: data.status.ws_connected
-                    },
+                    status: data.status,
+                    var_decls: data.var_decls,
+                    vars: data.vars,
                 });
                 barrier._data["device"] = device;
                 barrier._result = CANOPY_SUCCESS;
@@ -676,11 +844,14 @@ function CanopyModule() {
                 for (var i = 0; i < data.devices.length; i++) {
                     var info = data.devices[i];
                     var device = new CanopyDevice({
-                        name: info.friendly_name,
-                        device_id: info.device_id,
+                        device_id: data.device_id,
                         location_note: data.location_note,
+                        name: data.friendly_name,
                         remote: initParams.remote,
-                        secret_key: info.secret_key
+                        secret_key: data.secret_key,
+                        status: data.status,
+                        var_decls: data.var_decls,
+                        vars: data.vars,
                     });
                     barrier._data["devices"].push(device);
                 }
