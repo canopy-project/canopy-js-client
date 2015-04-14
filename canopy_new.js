@@ -264,7 +264,7 @@ function CanopyModule() {
             if (resp["location_note"]) {
                 locationNote = resp["location_note"];
             }
-            if (resp["status"].last_activity_time) {
+            if (resp["status"] && resp["status"].last_activity_time) {
                 lastActivityTime = resp["status"].last_activity_time;
             }
             if (resp["var_decls"]) {
@@ -303,11 +303,11 @@ function CanopyModule() {
         }
 
         this.lastActivityTime = function() {
-            if (initObj['status']) {
-                return initObj['status'].last_activity_time;
+            if (initParams['status']) {
+                return initParams['status'].last_activity_time;
             }
             /* TODO: Return NULL */
-            return undefined;
+            return null;
         }
 
         this.locationNote = function(newLocationNote) {
@@ -578,7 +578,7 @@ function CanopyModule() {
          */ 
         this.getMany = function(start, count) {
             var barrier = new CanopyBarrier();
-            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count;
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count + "&timestamps=rfc3339";
 
             initParams.remote._httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
@@ -817,8 +817,38 @@ function CanopyModule() {
 
     function CanopyUser(initParams) {
         var selfUser=this;
-        var email;
+        var email = initParams.email;
         var emailDirty = false;
+
+        this.changePassword = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self";
+
+            if (params.newPassword != params.confirmPassword) {
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+                return;
+            }
+
+            httpJsonPost(url, {
+                old_password: params.oldPassword,
+                new_password: params.newPassword,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
 
         /*
          * TODO: Server code & API needs to change.  We shouldn't return the
@@ -865,20 +895,6 @@ function CanopyModule() {
             return barrier;
         }
 
-        this.username = function() {
-            return initParams.username;
-        }
-        this.email = function(newEmail) {
-            if (newEmail !== undefined) {
-                email = newEmail;
-                emailDirty = true;
-            }
-            return email;
-        }
-        this.isValidated = function() {
-            return initParams.validated;
-        }
-
         /* 
          * Returns CanopyBarrier 
          */
@@ -898,9 +914,51 @@ function CanopyModule() {
             });
         }
 
+        this.email = function(newEmail) {
+            if (newEmail !== undefined) {
+                email = newEmail;
+                emailDirty = true;
+            }
+            return email;
+        }
+
+        this.isValidated = function() {
+            return initParams.validated;
+        }
+
         // TODO: docuement
         this.remote = function() {
             return initParams.remote;
+        }
+
+        this.updateToRemote = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self";
+
+            payload = {};
+            if (emailDirty) {
+                payload["email"] = email;
+            }
+
+            httpJsonPost(url, payload).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.username = function() {
+            return initParams.username;
         }
 
         /* 
@@ -957,3 +1015,37 @@ function CanopyModule() {
 }
 
 Canopy = new CanopyModule();
+
+/*
+ * FROM http://blog.toppingdesign.com/2009/08/13/fast-rfc-3339-date-processing-in-javascript/
+ */
+Date.prototype.setRFC3339 = function(dString){ 
+    var utcOffset, offsetSplitChar;
+    var offsetMultiplier = 1;
+    var dateTime = dString.split("T");
+    var date = dateTime[0].split("-");
+    var time = dateTime[1].split(":");
+    var offsetField = time[time.length - 1];
+    var offsetString;
+    offsetFieldIdentifier = offsetField.charAt(offsetField.length - 1);
+    if (offsetFieldIdentifier == "Z") {
+        utcOffset = 0;
+        time[time.length - 1] = offsetField.substr(0, offsetField.length - 2);
+    } else {
+        if (offsetField[offsetField.length - 1].indexOf("+") != -1) {
+            offsetSplitChar = "+";
+            offsetMultiplier = 1;
+        } else {
+            offsetSplitChar = "-";
+            offsetMultiplier = -1;
+        }
+        offsetString = offsetField.split(offsetSplitChar);
+        time[time.length - 1] == offsetString[0];
+        offsetString = offsetString[1].split(":");
+        utcOffset = (offsetString[0] * 60) + offsetString[1];
+        utcOffset = utcOffset * 60 * 1000;
+    }
+
+    this.setTime(Date.UTC(date[0], date[1] - 1, date[2], time[0], time[1], time[2]) + (utcOffset * offsetMultiplier ));
+    return this;
+};
