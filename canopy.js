@@ -13,762 +13,611 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
-Canopy Javascript Client API
 
-TODO: Maybe we should split this up into two or more files:
-    - canopy_rest_client.js   -- Simple wrapper around REST API
-    - canopy_ws_client.js   -- Simple wrapper around REST API
-    - canopy.js -- High-level interface (ORM)
-
-CANOPY CLIENT OBJECT
---------------------
-
-Initialize the library by creating a Canopy Client Object with:
-
-    canopy = new CanopyClient({
-        "cloudHost" : "ccs.canopy.link"
-    });
-
-TRACKING ACCOUNTS AND DEVICES
------------------------
-
-Before you can access a device or account's data, you must first "track" it.
-
-Each Canopy Client Object can "track" multiple Account and Device objects.  By
-"tracking" an object you can access and manipulate it within javascript.
-The tracking mechanism allows an efficient implementation to update (or
-"synchronize") all tracked objects with a single AJAX request.
-
-To track an account:
-
-    var acct = canopy.Account(username);
-
-To track the currently logged-in user (based on session cookies):
-
-    var acct = canopy.Account("me");
-
-To track a device:
-
-    var dev = canopy.Device(UUID);
-
-Once you have started tracking one or more objects, you can synchronize with
-the server using:
-
-    canopy.Sync({ onSuccess: function() {
-        // your code here
-    }});
-
-By default, Sync will synchronize all tracked Accounts and Devices.  You can
-synchronize specific objects with:
-
-    canopy.Sync({
-        accounts : [username],
-        devices: [uuid0, uuid1, ...],
-        onSuccess: function() {
-        }
-    });
-
-This form of the command will synchronize the specified devices even if they
-are not being tracked.
-
-Callbacks:
---------------------
-OnReady
-
-CanopyClient Callbacks:
-    "device-loaded"
-        Called when a new Device object is loaded for the first
-        time.
-
-Account Callbacks:
-    "device-loaded" - Called when a new Device object is loaded.
-
-ACCOUNTS
---------------------
-
-If the user has authenticated with the Canopy Cloud Service (by logging in, for
-example), you can access their Account Object:
-
-    canopy.me
-
-    // Get username
-    canopy.me.Username();
-
-    // Push changes
-    canopy.me.Save({
-        onSuccess: function() {
-            alert("Account updated");
-        }
-    });
-
-    // Get a user's devices:
-    canopy.me.Devices();
-
-    canopy.users();
-
-    // Get device
-    canopy.Device("UUID");
-
-    canopy.Device("UUID");
-
-CLOUD VARIABLES
---------------------
-
-    device = canopy.device("UUID");
-
-    device.gps.longitude.Value = 4.0f;
-*/
-
-function SDDLParser() {
-    var self=this;
-
-    // Parses json Object into anonymous cloudvar struct
-    this.Parse = function(propsJsonObj) {
-        return this.ParseVar("inout struct __root__", propsJsonObj);
-    }
-
-    // Returns {
-    //    datatype: varDatatype,
-    //    direction: varDirection,
-    //    error: errorStringOrNull,
-    //    name: varName,
-    this.ParseDeclString = function(declString) {
-        // TODO: Fix this hacky implementation
-        parts = declString.split(" ");
-        if (parts.length == 2) {
-            return {
-                datatype: parts[0],
-                direction: "inout",
-                error: null,
-                name: parts[1]
-            };
-        }
-        else if (parts.length == 3) {
-            return {
-                datatype: parts[1],
-                direction: parts[0],
-                error: null,
-                name: parts[2]
-            };
-        }
-        return {
-            error: "Could not parse declstring:" + declString
-        };
-    }
-
-    // Returns {value: SDDLVarDef, error: errorStringOrNull}
-    this.ParseVar = function(declString, propsJsonObj) {
-        var out = new SDDLVar();
-
-        // Parse declString
-        // For example: "out float32 temperature";
-        var decl = this.ParseDeclString(declString);
-        if (decl.error != null) {
-            return {
-                value: null,
-                error: decl.error
-            };
-        }
-        out.priv.direction = decl.direction
-        out.priv.datatype = decl.datatype;
-        out.priv.name = decl.name;
-
-        // Parse properties
-        out.priv.numChildren = 0;
-        for (var x in propsJsonObj) {
-            var val = propsJsonObj[x];
-
-            if (x == "description") {
-                out.priv.description = val;
-            }
-            else if (x == "min-value") {
-                out.priv.minValue = val;
-            }
-            else if (x == "max-value") {
-                out.priv.maxValue = val;
-            }
-            else if (x == "regex") {
-                out.priv.regex = val;
-            }
-            else if (x == "units") {
-                out.priv.units = val;
-            }
-            else {
-                // only do this if it parses to a var declaration
-                var child = self.ParseVar(x, val);
-                if (child.error == null) {
-                    out.priv.children[child.value.Name()] = child.value; // Index by name
-                    out.priv.children[out.priv.numChildren] = child.value; // Also index by int
-                    out.priv.numChildren++;
-                }
-                else {
-                    // could not understand field
-                    console.log("WARNING: Unexpected SDDL field: " + x);
-                }
-                
-            }
-        }
-        return {value: out, error: null};
-    }
-
-    function SDDLVar() {
-        this.priv = {};
-        this.priv.children = {};
-
-        this.ConcreteDirection = function() {
-            if (this.Direction == "inherit") {
-                return this.priv.parent.ConcreteDirection();
-            }
-            return this.Direction();
-        }
-
-        this.Description = function() {
-            return this.priv.description;
-        }
-
-        this.Datatype = function() {
-            return this.priv.datatype;
-        }
-
-        this.Direction = function() {
-            return this.priv.direction;
-        }
-
-        this.Name = function() {
-            return this.priv.name;
-        }
-
-        this.NumStructMembers = function() {
-            return this.priv.numChildren;
-        }
-
-        this.MinValue = function() {
-            return this.priv.minValue;
-        }
-
-        this.MaxValue = function() {
-            return this.priv.maxValue;
-        }
-
-        this.NumericDisplayHint = function() {
-            return this.priv.numericDisplayHint;
-        }
-
-        this.Regex = function() {
-            return this.priv.regex;
-        }
-
-        this.StructMember = function(name) {
-            return this.priv.children[name];
-        }
-
-        this.Units = function() {
-            return this.priv.units;
-        }
-    }
-}
-
-function CanopyClient(origSettings) {
-    var self=this;
-    var selfClient = this;
-    this.priv = {};
-    this.me = null;
-
-    // map: uuid-> Device object
-    // Contains all devices that the client knows about
-    this.priv.cachedDevices = {};
-
-    this.priv._CacheGetDevice = function(deviceJson) {
-        var cachedDevice = selfClient.priv.cachedDevices[deviceJson['device_id']];
-        if (cachedDevice == undefined) {
-            cachedDevice = new CanopyDevice(deviceJson);
-            selfClient.priv.cachedDevices[deviceJson['device_id']] = cachedDevice;
-        }
-        return cachedDevice;
-    }
-
-    this.priv.cloudHost = (origSettings["cloudHost"] != undefined) ? origSettings["cloudHost"] : "sandbox.canopy.link";
-
-    // map: username -> Account object
-    this.priv.trackedAccounts = {};
-    // map: uuid -> Account object
-    this.priv.trackedDevices = {};
-
-    this.OnReady = function(fn) {
-        this.priv.onReady = fn;
-    }
-
-    this.IsLoggedIn = function() {
-        return self.priv.me !== undefined;
-    }
-
-    this.ApiBaseUrl = function() {
-        return "//" + this.priv.cloudHost + "/api";
-    }
-
-    this.CloudHost = function() {
-        return this.priv.cloudHost;
-    }
-
-    this.CreateAccount = function(params) {
-        $.ajax({
-            type: "POST",
-            dataType : "json",
-            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            url: self.ApiBaseUrl() + "/create_user",
-            data: JSON.stringify({
-                username : params.username, 
-                email: params.email, 
-                password : params.password, 
-                password_confirm: params.passwordConfirm
-            }),
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data) {
-            /* Initialize canopyClient object */
-            /*self.devices = new CanopyDeviceList([]);
-            self.account = new CanopyAccount({
-                username: params.username,
-                email: params.email
-            });*/
-            if (data['result'] == "ok") {
-                if (params.onSuccess != null)
-                    params.onSuccess();
-            } 
-            else {
-                if (params.onError != null)
-                    params.onError(data['error']);
-            }
-        })
-        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
-            console.log(XMLHttpRequest);
-            console.log(textStatus);
-            console.log(errorThrown);
-            if (params.onError != null)
-                params.onError();
-        });
-    }
-
-    this.CreateDevices = function(params) {
-        $.ajax({
-            type: "POST",
-            dataType : "json",
-            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            url: self.ApiBaseUrl() + "/create_devices",
-            data: JSON.stringify({
-                friendly_names: params.deviceNames,
-                quantity: params.quantity,
-            }),
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data) {
-            if (data['result'] == "ok") {
-                for (var i = 0; i < data['devices'].length; i++) {
-                    // create new device resource
-                    var device = selfClient.priv._CacheGetDevice(data['devices'][i]);
-
-                    // add it to the account's device list
-                    selfClient.me.priv.devices.Append(device);
-                }
-                if (params.onSuccess != null)
-                    params.onSuccess();
-            } 
-            else {
-                if (params.onError != null)
-                    params.onError(data['error']);
-            }
-        })
-        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
-            console.log(XMLHttpRequest);
-            console.log(textStatus);
-            console.log(errorThrown);
-            if (params.onError != null)
-                params.onError();
-        });
-    }
-
-    this.Login = function(params) {
-        /* TODO: proper error handlilng */
-        /* TODO: response needs to include username & email */
-        $.ajax({
-            type: "POST",
-            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/login",
-            data: JSON.stringify({username : params.username, password : params.password}),
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            if (data['result'] == "ok") {
-                var acct = new CanopyAccount({
-                    username: data['username'],
-                    email: data['email']
-                });
-                self.account = acct;
-                if (params.onSuccess)
-                    params.onSuccess(acct);
-            }
-            else {
-                if (params.onError)
-                    params.onError("unknown");
-            }
-        })
-        .fail(function(XMLHttpRequest, textStatus, errorThrown) {
-            if (!XMLHttpRequest.responseText) {
-                if (params.onError)
-                    params.onError("unknown");
-                return;
-            }
-            console.log(XMLHttpRequest.responseText);
-            var data = JSON.parse(XMLHttpRequest.responseText);
-            console.log(data);
-            console.log(data['result']);
-            console.log(data['error_type']);
-            if (data['result'] == "error") {
-                if (params.onError)
-                    params.onError(data['error_type']);
-            }
-            else {
-                if (params.onError)
-                    params.onError("unknown");
-            }
-        });
-    }
-
-    this.Logout = function(params) {
-        $.ajax({
-            type: "POST",
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/logout",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function() {
-            if (params.onSuccess)
-                params.onSuccess();
-        })
-        .fail(function() {
-            if (params.onError)
-                params.onError();
-        });
-    }
-
-    // Activate an Account
-    this.ActivateAccount = function(params) {
-        $.ajax({
-            type: "POST",
-            data: JSON.stringify({ "username" : params["username"], "code" : params["code"]}),
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/activate",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            // Update each synchronized account object
-            if (data['result'] == "ok") {
-                if (params.onSuccess)
-                    params.onSuccess();
-            } else {
-                if (params.onError)
-                    params.onError("unknown");
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            /* TODO: determine error */
-            if (params.onError)
-                params.onError("unknown");
-        });
-    }
-
-    // Request Password Reset
-    this.RequestPasswordReset = function(params) {
-        $.ajax({
-            type: "POST",
-            data: JSON.stringify({ "username" : params["username"]}),
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/reset_password",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            // Update each synchronized account object
-            if (data['result'] == "ok") {
-                if (params.onSuccess)
-                    params.onSuccess();
-            } else {
-                if (params.onError)
-                    params.onError("unknown");
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            /* TODO: determine error */
-            if (params.onError)
-                params.onError("unknown");
-        });
-    }
-
-    // Reset Password
-    this.ResetPassword = function(params) {
-        if (params["password"] != params["confirm_password"]) {
-            if (params.onError())
-                params.onError();
-            return;
-        }
-        $.ajax({
-            type: "POST",
-            data: JSON.stringify({ 
-                "username" : params["username"],
-                "password" : params["password"],
-                "code" : params["code"]
-            }),
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/reset_password",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            // Update each synchronized account object
-            if (data['result'] == "ok") {
-                if (params.onSuccess)
-                    params.onSuccess();
-            } else {
-                if (params.onError)
-                    params.onError("unknown");
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            /* TODO: determine error */
-            if (params.onError)
-                params.onError("unknown");
-        });
-    }
-
-
-    // Synchronize with the server
-    this.Sync = function(params) {
-        var trackAccts = this.priv.trackedAccounts;
-        var trackDevices = this.priv.trackedDevices;
-
-        if (priv.trackedAccounts['me'] !== undefined) {
-            var acct = priv.trackedAccounts['me'];
-            acct.priv.email = "greg@greg.com";
-            acct.priv.username = "gregulator";
-            acct.priv.ready = true;
-            acct.priv.onChange();
-
-            acct.priv.devices = [
-                new CanopyDevice()
-            ];
-            acct.priv.onDeviceLoaded(acct.priv.devices[0]);
-        }
-
-        var ajax = CCSSimulatorAjax;
-
-        ajax({
-            type: "POST",
-            data: JSON.stringify({ "sync-accounts" : trackAccts, "sync-devices" : trackDevices}),
-            dataType : "json",
-            url: self.ApiBaseUrl() + "/sync",
-            xhrFields: {
-                 withCredentials: true
-            },
-            crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            // Update each synchronized account object
-            alert("sync done");
-            if (data['result'] == "ok") {
-                var acct = new CanopyAccount({
-                    username: data['username'],
-                    email: data['email']
-                });
-                if (params.onSuccess)
-                    params.onSuccess(acct);
-            } else {
-                if (data['error_type']) {
-                    if (params.onError)
-                        params.onError(data['error_type']);
-                }
-                else {
-                    if (params.onError)
-                        params.onError("unknown");
-                }
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            /* TODO: determine error */
-            if (params.onError)
-                params.onError("unknown");
-        });
-    }
-
-    this.Account = function(account) {
-        if (priv.trackedAccounts[account] === undefined) {
-            var acct = new CanopyAccount(account);
-            priv.trackedAccounts[account] = acct;
-            return acct;
-        } else {
-            return priv.trackedAccounts[account];
-        }
-    }
-
-    this.Device = function(uuid) {
-        return selfClient.priv.devices[uuid]
-    }
-    
-    // fetchAccount (private)
-    // AJAX request for account details.
-    function fetchAccount(params) {
-        $.ajax({
+/* 
+ * New Javascript (Browser) Client for Canopy.
+ */
+
+var CANOPY_SUCCESS = 0;
+var CANOPY_ERROR_UNKNOWN = 1;
+var CANOPY_ERROR_BAD_CREDENTIALS = 2;
+var CANOPY_ERROR_FATAL = 3;
+var CANOPY_ERROR_INCOMPATIBLE_LIBRARY_VERSION = 4;
+var CANOPY_ERROR_NOT_IMPLEMENTED = 5;
+var CANOPY_ERROR_BAD_PARAM = 6;
+var CANOPY_ERROR_WRONG_TYPE = 7;
+var CANOPY_ERROR_AGAIN = 8;
+var CANOPY_ERROR_CANCELLED = 9;
+var CANOPY_ERROR_VAR_IN_USE = 10;
+var CANOPY_ERROR_VAR_NOT_FOUND = 11;
+var CANOPY_ERROR_VAR_NOT_SET = 12;
+var CANOPY_ERROR_OUT_OF_MEMORY = 13;
+var CANOPY_ERROR_BUFFER_TOO_SMALL = 14;
+var CANOPY_ERROR_JSON = 15;
+var CANOPY_ERROR_NETWORK = 16;
+var CANOPY_ERROR_SHUTDOWN = 17;
+var CANOPY_ERROR_NOT_FOUND = 18;
+
+var CANOPY_VAR_OUT = "out";
+var CANOPY_VAR_IN = "in";
+var CANOPY_VAR_INOUT = "inout";
+
+function CanopyModule() {
+    var selfModule = this;
+
+    function httpJsonGet(url) {
+        // TODO: provide BASIC AUTH if necessary
+        return $.ajax({
             type: "GET",
             dataType : "json",
-            url: self.ApiBaseUrl() + "/user/self",
+            url: url,
             xhrFields: {
                  withCredentials: true
             },
             crossDomain: true
-        })
-        .done(function(data, textStatus, jqXHR) {
-            if (data['result'] == "ok") {
-                var acct = new CanopyAccount({
-                    activated: data['activated'],
-                    username: data['username'],
-                    email: data['email']
-                });
-                self.me = acct;
-                acct.fetchDevices({
-                    onSuccess: function(deviceList) {
-                        self.devices = deviceList;
-                        self.me.devices = deviceList;
-                        if (params.onSuccess)
-                            params.onSuccess(acct);
-                    },
-                    onError: function() {
-                        if (params.onError)
-                            params.onError("unknown");
-                    }
-                });
-            } else {
-                if (data['error_type']) {
-                    if (params.onError)
-                        params.onError(data['error_type']);
-                }
-                else {
-                    if (params.onError)
-                        params.onError("unknown");
-                }
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            /* TODO: determine error */
-            if (params.onError)
-                params.onError("unknown");
         });
     }
 
-    // CanopyAccount
-    // This is a private "class" of CanopyClient to prevent the caller from
-    // calling the constructor.
-    function CanopyAccount(initObj) {
-        var priv = {};
-        var self=this;
-        this.priv = priv;
-        priv.ready = true;
-        priv.username = initObj.username;
-        priv.email = initObj.email;
+    function httpJsonPost(url, data) {
+        // TODO: provide BASIC AUTH if necessary
+        return $.ajax({
+            contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+            type: "POST",
+            dataType : "json",
+            url: url,
+            data: JSON.stringify(data),
+            xhrFields: {
+                 withCredentials: true
+            },
+            crossDomain: true
+        });
+    }
 
-        this.Email = function() {
-            if (!priv.ready) {
-                return {"value" : "", "error" : "Account Not Ready"};
-            }
-            return {"value" : priv.email, "error" : null};
+    function CanopyBarrier() {
+        var cb = null;
+        var selfBarrier = this;
+        this._data = {};
+
+        this.onDone = function(_cb) {
+            cb = _cb;
+            return self;
         }
 
-        this.On = function(eventNames, callback) {
-            if (eventNames == "change") {
-                priv.onChange = callback;
-            } else if (eventNames == "device-loaded") {
-                priv.onDeviceLoaded = callback;
-            }
-        }
-
-        this.IsActivated = function() {
-            return initObj.activated;
-        }
-
-        this.Quotas = function() {
-            // Hack: temporarily disable quotas
-            return {
-                "devices": 100000
-            };
-        }
-
-        this.Username = function() {
-            if (!priv.ready) {
-                return {"value" : "", "error" : "Not Ready"};
-            }
-            return {"value" : priv.username, "error" : null};
-        }
-
-        this.UpdateProfile = function(params) {
-            var obj = {};
-            if (params.newPassword != params.confirmPassword) {
-                if (params.onError())
-                    params.onError();
+        this._signal = function() {
+            if (!cb) {
                 return;
             }
-            if (params.oldPassword)
-                obj.old_password = params.oldPassword;
-            if (params.newPassword)
-                obj.new_password = params.newPassword;
-            if (params.email)
-                obj.email = params.email;
-            $.ajax({
-                type: "POST",
-                dataType : "json",
-                data: JSON.stringify(obj),
-                url: selfClient.ApiBaseUrl() + "/user/self",
-                xhrFields: {
-                     withCredentials: true
-                },
-                crossDomain: true
-            })
-            .done(function(data, textStatus, jqXHR) {
-                /* construct CanopyDevice objects */
-                if (params.onSuccess)
-                    params.onSuccess();
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError("unknown");
-            });
+            cb(selfBarrier._result, selfBarrier._data);
+        }
+    }
+
+    function CanopyCloudVariable(initDeclParams) {
+        var val;
+        var lastRemoteValue = null;
+        var lastRemoteUpdateTime = null;
+        var dirty = false;
+
+        this._updateFromRemote = function(t, v) {
+            lastRemoteValue = v;
+            lastRemoteUpdateTime = t;
+            val = v; /* TODO: always override? */
+            dirty = false /* TODO: always override? */
+        };
+
+        this.direction = function() {
+            return initDeclParams.direction;
         }
 
-        this.fetchDevices = function(params) {
-            /* TODO: Filter to only show devices for this account */
-            var url = selfClient.ApiBaseUrl() + "/user/self/devices?timestamps=rfc3339";
-            if (params.limit) {
-                url += "&limit=" + params.limit
+        this.datatype = function() {
+            return initDeclParams.datatype;
+        }
+
+        this.device = function() {
+            return initDeclParams.device;
+        }
+
+        // Returns barrier
+        this.historicData = function(startTime, endTime) {
+            var barrier = new CanopyBarrier();
+            console.log(initDeclParams);
+            var url = initDeclParams.remote.baseUrl() + "/api/device/" + this.device().id() + "/" + this.name();
+
+            initDeclParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    // TODO: Return result somehow
+                    barrier._data["samples"] = data.samples;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        this.isModified = function() {
+            return dirty;
+        }
+
+        // returns null if never set
+        this.lastRemoteValue = function() {
+            return lastRemoteValue;
+        }
+
+        // Returns null if never updated
+        this.lastRemoteUpdateTime = function() {
+            return lastRemoteUpdateTime;
+        }
+
+        this.lastRemoteUpdateSecondsAgo = function() {
+            var t = this.lastRemoteUpdateTime();
+            if (!t) {
+                return null;
             }
-            $.ajax({
+            var d = new Date().setRFC3339(t);
+            return (new Date() - d) / 1000;
+        }
+
+        this.name = function() {
+            return initDeclParams.name;
+        }
+
+        this.value = function(newValue) {
+            if (newValue !== undefined) {
+                val = newValue;
+                dirty = true;
+            }
+            return val;
+        }
+    }
+
+    function CanopyContext() {
+        var selfContext = this;
+        var isShutdown = false;
+
+        this.shutdown = function() {
+            isShutdown = true;
+        }
+
+        this.initRemote = function(params) {
+            if (isShutdown) {
+                console.log("Cannot initRemote.  Context has been shutdown");
+                return CANOPY_ERROR_SHUTDOWN;
+            }
+
+            return new CanopyRemote(params);
+        }
+    }
+
+    function CanopyDevice(initParams) {
+        var device_id = initParams.device_id;
+        var nameDirty = false;
+        var name = initParams.name;
+        var locationNote = initParams.location_note;
+        var locationNoteDirty = false;
+        var selfDevice = this;
+        var varList = [];
+
+        // Returns list of CanopyCloudVariables, or null on error
+        function parseAndMergeVarDecls(varDecls, varValues) {
+            for (key in varDecls) {
+                if (varDecls.hasOwnProperty(key)) {
+                    var parts = key.split(" ");
+                    if (parts.length != 3) {
+                        console.log("Error parsing var decl " + key);
+                        return null;
+                    }
+                    var direction = parts[0];
+                    var datatype = parts[1];
+                    var name = parts[2];
+
+                    // TODO: validate input
+                   
+                    var cloudVar = selfDevice.varByName(name);
+                    if (cloudVar !== null) {
+                        // Device already has this cloud variable.  Skip it.
+                        if (cloudVar.datatype() != datatype) {
+                            // TODO: What to do here?
+                            alert("Variable Datatype changed!");
+                        }
+                        if (cloudVar.direction() != direction) {
+                            // TODO: What to do here?
+                            alert("Variable Datatype changed!");
+                        }
+                        continue;
+                    }
+
+                    // create the cloud variable
+                    cloudVar = new CanopyCloudVariable({
+                        direction: direction,
+                        datatype: datatype,
+                        device: selfDevice,
+                        remote: initParams.remote,
+                        name: name
+                    });
+                    if (varValues !== undefined) {
+                        var timestampAndValue = varValues[cloudVar.name()];
+                        if (timestampAndValue !== undefined) {
+                            cloudVar._updateFromRemote(
+                                timestampAndValue.t,
+                                timestampAndValue.v
+                            );
+                        }
+                    }
+
+                    // add it to the list:
+                    varList.push(cloudVar);
+                }
+            }
+        }
+
+        function updateFromPayload(resp) {
+            if (resp["friendly_name"]) {
+                name = resp["friendly_name"];
+            }
+            if (resp["location_note"]) {
+                locationNote = resp["location_note"];
+            }
+            if (resp["status"] && resp["status"].last_activity_time) {
+                lastActivityTime = resp["status"].last_activity_time;
+            }
+            if (resp["var_decls"]) {
+                parseAndMergeVarDecls(resp["var_decls"], resp["vars"]);
+            }
+            if (resp["vars"]) {
+                updateVarValues(resp["vars"]);
+            }
+        }
+
+        this.id = function() {
+            return initParams.device_id;
+        }
+
+        this.isActive = function() {
+            // TODO: Keep this function?
+            return (this.lastActivitySecondsAgo() != null && this.lastActivitySecondsAgo() < 60);
+        }
+
+        this.isInactive = function() {
+            // TODO: Keep this function?
+            return (this.lastActivitySecondsAgo() >= 60);
+        }
+
+        this.isNewlyCreated = function() {
+            return (this.lastActivityTime() == null);
+        }
+
+        this.lastActivitySecondsAgo = function() {
+            if (initParams.status.last_activity_time) {
+                var d = new Date().setRFC3339(initParams.status.last_activity_time);
+                return (new Date() - d) / 1000;
+            } else {
+                return null;
+            }
+        }
+
+        this.lastActivityTime = function() {
+            if (initParams['status']) {
+                return initParams['status'].last_activity_time;
+            }
+            /* TODO: Return NULL */
+            return null;
+        }
+
+        this.locationNote = function(newLocationNote) {
+            if (newLocationNote !== undefined) {
+                locationNote = newLocationNote;
+                locationNoteDirty = true;
+            }
+            return locationNote;
+        }
+
+        this.name = function(newName) {
+            if (newName !== undefined) {
+                name = newName;
+                nameDirty = true;
+            }
+            return name;
+        }
+
+        this.secretKey = function() {
+            return initParams.secret_key ? initParams.secret_key : "hidden";
+        }
+
+
+        function constructPayload() {
+            var payload = {}
+            console.log("nameDirty" + nameDirty);
+            if (nameDirty) {
+                payload["friendly_name"] = name;
+                nameDirty = false; /* TODO: only clear on success */
+            }
+            if (locationNoteDirty) {
+                payload["location_note"] = locationNote;
+                locationNoteDirty = false;
+            }
+            // TODO: Send any newly declared Cloud Variables
+            // TODO: Send any modified var values.
+            payload["vars"] = {};
+            var cloudVars = selfDevice.vars();
+            for (var i = 0; i < cloudVars.length; i++) {
+                var cloudVar = cloudVars[i];
+                if (cloudVar.isModified()) {
+                    payload["vars"][cloudVar.name()] = cloudVar.value();
+                }
+            }
+            return payload;
+        }
+
+        function updateVarValues(varsPayload) {
+            for (key in varsPayload) {
+                if (varsPayload.hasOwnProperty(key)) {
+                    var cloudVar = selfDevice.varByName(key);
+                    var varPayload = varsPayload[key];
+                    cloudVar._updateFromRemote(varPayload.t, varPayload.v);
+                }
+            }
+        }
+
+        this.syncWithRemote = function() {
+            payload = constructPayload();
+            console.log(payload);
+
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id() + "?timestamps=rfc3339";
+
+            initParams.remote._httpJsonPost(url, payload).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    updateFromPayload(data);
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        this.updateToRemote = function() {
+            payload = constructPayload();
+
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+
+            console.log("posting payload");
+            console.log(payload);
+            initParams.remote._httpJsonPost(url, payload).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        this.updateFromRemote = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/device/" + this.id();
+
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    updateFromPayload(data);
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        this.varByName = function(varName) {
+            for (var i = 0; i < varList.length; i++) {
+                if (varList[i].name() == varName) {
+                    return varList[i];
+                }
+            }
+            return null;
+        }
+
+        /* TODO: returns list of top-level vars */
+        this.vars = function() {
+            return varList;
+        }
+
+        this.websocketConnected = function() {
+            return initParams.status.ws_connected ? true : false;
+        }
+
+        // Initialize
+        updateFromPayload(initParams);
+    }
+
+    function CanopyDeviceQuery(initParams) {
+        var selfDQ = this;
+
+        /*
+         * Returns CanopyBarrier
+         */ 
+        this.count = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=0,0"
+
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    var i;
+                    barrier._data["count"] = data.paging.total_count;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        /* 
+         * Returns new DeviceQuery.  Does not affect the DQ that this was
+         * called on.
+         */
+        this.filter = function(expr) {
+            var newFilters = [];
+            for (var i = 0; i < initParams.filters.length; i++) {
+                newFilters.push(initParams.filters[i]);
+            }
+            newFilters.push(expr);
+
+            /*return new CanopyDeviceQuery(
+                remote: initParams.remote,
+                filter: newFilters
+            );*/
+        }
+
+        /*
+         * Returns CanopyBarrier
+         */ 
+        this.get = function(indexOrId) {
+            var barrier = new CanopyBarrier();
+
+            function isInteger(n) {
+                return n === +n && n === (n|0);
+            }
+
+            if (isInteger(indexOrId)) {
+                selfDQ.getMany(indexOrId, 1).onDone(function(result, data) {
+                    if (result != CANOPY_SUCCESS) {
+                        barrier._result = result;
+                        barrier._data = data; /* is this correct? */
+                        barrier._signal();
+                        return;
+                    }
+
+                    if (data.devices.length == 0) {
+                        barrier._result = CANOPY_ERROR_NOT_FOUND;
+                        barrier._signal();
+                        return;
+                    } else if (data.devices.length > 1) {
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._data["device"] = data.devices[0];
+                    barrier._signal();
+                });
+                return barrier;
+            }
+
+            var url = initParams.remote.baseUrl() + "/api/device/" + indexOrId + "?timestamps=rfc3339";
+
+            /* TODO: make sure filters are satisfied as well */
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+
+                    var device = new CanopyDevice({
+                        device_id: data.device_id,
+                        location_note: data.location_note,
+                        name: data.friendly_name,
+                        remote: initParams.remote,
+                        secret_key: data.secret_key,
+                        status: data.status,
+                        var_decls: data.var_decls,
+                        vars: data.vars,
+                    });
+
+                    barrier._data["device"] = device;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+
+        /*
+         * Returns CanopyBarrier
+         */ 
+        this.getMany = function(start, count) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count + "&timestamps=rfc3339";
+
+            initParams.remote._httpJsonGet(url).done(
+                function(data, textStatus, jqXHR) {
+                    if (data['result'] != "ok") {
+                        // TODO: proper error handling
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    var devices = [];
+                    var i;
+                    for (i = 0; i < data['devices'].length; i++) {
+                        devices.push(new CanopyDevice({
+                            device_id: data['devices'][i].device_id,
+                            location_note: data['devices'][i].location_note,
+                            name: data['devices'][i].friendly_name,
+                            remote: initParams.remote,
+                            secret_key: data['devices'][i].secret_key,
+                            status: data['devices'][i].status,
+                            var_decls: data['devices'][i].var_decls,
+                            vars: data['devices'][i].vars
+                        }));
+                    }
+
+                    barrier._data["devices"] = devices;
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }
+            );
+
+            return barrier;
+        }
+    }
+
+    function CanopyRemote(initParams) {
+        var selfRemote = this;
+
+        this._httpJsonGet = function(url) {
+            var options = {
                 type: "GET",
                 dataType : "json",
                 url: url,
@@ -776,560 +625,454 @@ function CanopyClient(origSettings) {
                      withCredentials: true
                 },
                 crossDomain: true
-            })
-            .done(function(data, textStatus, jqXHR) {
-                /* construct CanopyDevice objects */
-                var devices = [];
+            };
+            if (initParams.auth_type == "basic") {
+                options["headers"] = {
+                    "Authorization": "Basic " + btoa(initParams.auth_username + ":" + initParams.auth_password)
+                }
+            }
+            return $.ajax(options);
+        }
+
+        this._httpJsonPost = function(url, data) {
+            var options = {
+                contentType: 'text/plain; charset=utf-8', /* Needed for safari */
+                type: "POST",
+                dataType : "json",
+                url: url,
+                data: JSON.stringify(data),
+                xhrFields: {
+                     withCredentials: true
+                },
+                crossDomain: true
+            };
+            if (initParams.auth_type == "basic") {
+                options["headers"] = {
+                    "Authorization": "Basic " + btoa(initParams.auth_username + ":" + initParams.auth_password)
+                }
+            }
+            return $.ajax(options);
+        }
+        
+        this.baseUrl = function() {
+            return "https://" + initParams.host;
+        }
+
+        /* Returns CanopyBarrier */
+        // TODO: Document
+        this.createUser = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/create_user";
+
+            // TODO: error out if passwords don't match
+
+            httpJsonPost(url, {
+                username: params.username, 
+                email: params.email, 
+                password : params.password
+            }).done(function(data) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._data["user"] = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        /* Returns CanopyBarrier */
+        this.login = function(params) {
+            // TODO: Update doc now that we take username, password as params.
+            // TODO: error if auth_type == BASIC //
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/login";
+
+            httpJsonPost(url, {
+                username: params.username,
+                password: params.password,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._data["user"] = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        /* Returns CanopyBarrier */
+        this.logout = function() {
+            // TODO: error if auth_type == BASIC //
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/logout";
+
+            httpJsonPost(url, {
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns CanopyBarrier
+        this.getSelfDevice = function() {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/device/self";
+
+            selfRemote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                console.log("FETCH");
+                console.log(data);
+                var device = new CanopyDevice({
+                    device_id: data.device_id,
+                    location_note: data.location_note,
+                    name: data.friendly_name,
+                    remote: selfRemote,
+                    secret_key: data.secret_key,
+                    status: data.status,
+                    var_decls: data.var_decls,
+                    vars: data.vars,
+                });
+                barrier._data["device"] = device;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns CanopyBarrier
+        this.getSelfUser = function() {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/user/self";
+
+            selfRemote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                var user = new CanopyUser({
+                    validated: data['validated'],
+                    username: data['username'],
+                    email: data['email'],
+                    remote: selfRemote
+                });
+                barrier._data["user"] = user;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns CanopyBarrier
+        this.requestPasswordReset = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/reset_password";
+
+            selfRemote._httpJsonPost(url, {
+                "username" : params.username
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.resetPassword = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/reset_password";
+
+            if (!params.password || (params.password != params.confirmPassword)) {
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+                return;
+            }
+
+            var payload = {
+                "username" : params.username,
+                "password" : params.password,
+                "code" : params.code
+            };
+            selfRemote._httpJsonPost(url, payload)
+                .done(function(data, textStatus, jqXHR) {
+                    if (data.result != "ok") {
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }).fail(function(jqXHR, textStatus, errorThrown) {
+                    /* TODO: determine error */
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                })
+            ;
+
+            return barrier;
+        }
+    }
+
+    function CanopyUser(initParams) {
+        var selfUser=this;
+        var email = initParams.email;
+        var emailDirty = false;
+
+        this.changePassword = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self";
+
+            if (params.newPassword != params.confirmPassword) {
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+                return;
+            }
+
+            httpJsonPost(url, {
+                old_password: params.oldPassword,
+                new_password: params.newPassword,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        /*
+         * TODO: Server code & API needs to change.  We shouldn't return the
+         * whole list of devices, because there might be 1M+ of them.  Instead,
+         * we should assign all of the newly created devices a "batch #" and
+         * return a DeviceQuery object that uses that batch as a filter.
+         */
+        this.createDevices = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/create_devices";
+
+            httpJsonPost(url, {
+                quantity: params.quantity,
+                friendly_names: params.names
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._data["devices"] = [];
                 for (var i = 0; i < data.devices.length; i++) {
-                    var dev = new CanopyDevice(data.devices[i]);
-                    devices.push(dev);
+                    var info = data.devices[i];
+                    var device = new CanopyDevice({
+                        device_id: data.device_id,
+                        location_note: data.location_note,
+                        name: data.friendly_name,
+                        remote: initParams.remote,
+                        secret_key: data.secret_key,
+                        status: data.status,
+                        var_decls: data.var_decls,
+                        vars: data.vars,
+                    });
+                    barrier._data["devices"].push(device);
                 }
-                self.priv.devices = new CanopyDeviceList(devices);
-                if (params.onSuccess)
-                    params.onSuccess(self.priv.devices);
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError("unknown");
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
             });
+
+            return barrier;
         }
 
-        this.Devices = function() {
-            return self.priv.devices;
-        }
-
-        // Initialize
-        this.fetchDevices({
-            onSuccess: function(deviceList) {
-            }
-        })
-
-
-    }
-
-    // Creates a new "inout struct __root__" CloudVar object that contains the
-    // children according to sddlObj and varsObj.
-    function CloudVarSystem(device, sddlVarDefRoot, varsObjRoot) {
-        var keys = [];
-        var vars = [];
-        var varsByName = {};
-
-        var numVarDefs = sddlVarDefRoot.NumStructMembers();
-        for (var i = 0; i < numVarDefs; i++) {
-            var varDef = sddlVarDefRoot.StructMember(i);
-            keys.push(varDef.Name());
-            newVar = new CloudVar(device, varDef, varsObjRoot[varDef.Name()]);
-            vars.push(newVar);
-            varsByName[newVar.Name()] = newVar;
-        }
-
-        this.NumVars = function() {
-            return sddlVarDefRoot.NumStructMembers();
-        }
-
-        this.Length = this.NumVars;
-
-        // returns list of var keys
-        this.VarKeys = function() {
-            return keys;
-        }
-
-        // lookup var by key or index
-        this.Var = function(idx) {
-            if (varsByName[idx] != undefined) {
-                return varsByName[idx];
-            }
-            return vars[idx];
-        }
-    }
-
-    // <valueJsonObj> may be undefined.
-    function CloudVar(device, sddlVarDef, valueJsonObj) {
-        var priv = {};
-        var self=this;
-        this.priv = priv;
-
-        // Parse
-        if (valueJsonObj) {
-            priv.value = valueJsonObj.v;
-            priv.timestamp = valueJsonObj.t;
-        }
-        priv.sddl = sddlVarDef;
-
-        var _ConvertValue = function(val) {
-            if (self.Datatype() == "float32" 
-                    || self.Datatype() == "float64") {
-                return parseFloat(val);
-            }
-            else if (self.Datatype() == "int8" 
-                    || self.Datatype() == "int16"
-                    || self.Datatype() == "int32"
-                    || self.Datatype() == "uint8"
-                    || self.Datatype() == "uint16"
-                    || self.Datatype() == "uint32") {
-                return parseInt(val);
-            }
-            else if (self.Datatype() == "bool") {
-                return (val == "true") ? true : false;
-            }
-            return val;
-        }
-
-        this.Direction = function() {
-            return this.priv.sddl.Direction()
-        }
-
-        this.ConcreteDirection = function() {
-            return this.priv.sddl.ConcreteDirection();
-        }
-
-        this.Description = function() {
-            return this.priv.sddl.Description();
-        }
-        this.Datatype = function() {
-            return this.priv.sddl.Datatype();
-        }
-
-        this.Device = function() {
-            return device;
-        }
-
-        this.FetchHistoricData = function(params) {
-            $.ajax({
-                type: "GET",
-                dataType: "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "/" + this.Name() + "?timestamps=rfc3339",
-                xhrFields: {
-                     withCredentials: true
-                },
-                crossDomain: true
-            })
-            .done(function(data, textStatus, jqXHR) {
-                if (params.onSuccess)
-                    params.onSuccess(data);
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError();
-            });
-        }
-
-
-        this.Name = function() {
-            return this.priv.sddl.Name();
-        }
-
-        this.MinValue = function() {
-            return this.priv.sddl.MinValue();
-        }
-
-        this.MaxValue = function() {
-            return this.priv.sddl.MaxValue();
-        }
-
-        this.NumericDisplayHint = function() {
-            return this.priv.sddl.NumericDisplayHint();
-        }
-
-        this.Regex = function() {
-            return this.priv.sddl.Regex();
-        }
-
-        this.Save = function(params) {
-            obj = {
-                vars: {
-                }
-            };
-            obj.vars[this.Name()] = this.Value();
-            $.ajax({
-                type: "POST",
-                dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + device.UUID() + "?timestamps=rfc3339",
-                data: JSON.stringify(obj),
-                xhrFields: {
-                     withCredentials: true
-                },
-                crossDomain: true
-            })
-            .done(function() {
-                if (params.onSuccess)
-                    params.onSuccess();
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError();
-            });
-        }
-
-        this.SDDLVarDef = function() {
-            return this.priv.sddl
-        }
-
-        this.Timestamp = function() {
-            return priv.timestamp;
-        }
-
-        this.TimestampSecondsAgo = function() {
-            if (priv.timestamp) {
-                var d = new Date().setRFC3339(priv.timestamp);
-                return (new Date() - d) / 1000;
-            }
-        }
-
-        this.Units = function() {
-            return this.priv.sddl.Units();
-        }
-
-        // Get or set the cloud variable's value
-        this.Value = function(newValue) {
-            if (newValue !== undefined) {
-                val = _ConvertValue(newValue);
-                priv.value = val;
-                // TODO: mark dirty
-            }
-            return priv.value;
-        }
-
-    }
-
-    /*
-     * CanopyDevice
-     *
-     * This is a private "class" of CanopyClient to prevent the caller from
-     * calling the constructor.
-     */
-    function CanopyDevice(initObj) {
-        var self=this;
-        /*var result = ParseResponse(self, initObj.sddl_class, initObj.property_values);
-        if (result.error != null) {
-            console.log(result.error);
-        }
-        var classInstance = result.instance;
-
-        this.properties = classInstance.properties;*/
-
-        this.Vars = function() {
-            // TODO cache results
-            if (!initObj.var_decls) {
-                return undefined;
-            }
-            if (!initObj.vars) {
-                return undefined;
-            }
-            result = (new SDDLParser()).Parse(initObj.var_decls);
-            if (result.error != null) {
-                console.log("SDDL Parsing error: " + result.error);
-                return undefined;
-            }
-            sddlVarDef = result.value;
-
-            return new CloudVarSystem(this, sddlVarDef, initObj.vars);
-        }
-
-        this.vars = {
-            Length: function() {
-                return 0;
-            }
-        }
-
-        this.FriendlyName = function() {
-            return initObj.friendly_name;
-        }
-
-        this.ID = function() {
-            return initObj.device_id;
-        }
-
-        this.LocationNote = function() {
-            return initObj.location_note ? initObj.location_note : "";
-        }
-
-        this.notifications = function() {
-            // TODO: Wrap in object?
-            return initObj.notifications;
-        }
-
-
-        this.sddlClass = function() {
-            return new SDDLClass(initObj.sddl_class);
-        }
-
-        this.SecretKey = function() {
-            return initObj.secret_key ? initObj.secret_key : "hidden";
-        }
-
-        this.UUID = this.ID,
-        /*
-         *  params:
-         *      friendlyName
-         *      locationNote
-         *      onSuccess
-         *      onError
+        /* 
+         * Returns CanopyBarrier 
          */
-        this.setSettings = function(params) {
-            obj = {};
-            if (params.friendlyName !== undefined) {
-                obj["friendly_name"] = params.friendlyName;
-                initObj.friendly_name = params.friendlyName;
-            }
-            if (params.locationNote !== undefined) {
-                obj["location_note"] = params.locationNote;
-                initObj.location_note = params.locationNote;
-            }
-            $.ajax({
-                type: "POST",
-                dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID() + "?timestamps=rfc3339",
-                data: JSON.stringify(obj),
-                xhrFields: {
-                     withCredentials: true
-                },
-                crossDomain: true
-            })
-            .done(function() {
-                if (params.onSuccess)
-                    params.onSuccess();
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError();
-            });
+        this.device = function(id) {
+            // TODO
+            return null;
         }
 
-        /*
-         * params:
-         *  sddlObj -- The property to add/update.
-         *  onSuccess
-         *  onError
+        /* 
+         * Returns DeviceQuery
          */
-        this.updateSDDL = function(params) {
-            obj = {
-                "__sddl_update" : params.sddlObj
-            };
-            $.ajax({
-                type: "POST",
-                dataType : "json",
-                url: selfClient.ApiBaseUrl() + "/device/" + self.UUID() + "?timestamps=rfc3339",
-                data: JSON.stringify(obj),
-                xhrFields: {
-                     withCredentials: true
-                },
-                crossDomain: true
-            })
-            .done(function() {
-                if (params.onSuccess)
-                    params.onSuccess();
-            })
-            .fail(function() {
-                if (params.onError)
-                    params.onError();
+        this.devices = function() {
+            // TODO
+            return new CanopyDeviceQuery({
+                user: selfUser.username(),
+                remote: initParams.remote
             });
         }
 
-
-        this.LastActivitySecondsAgo = function() {
-            if (initObj.status.last_activity_time) {
-                var d = new Date().setRFC3339(initObj.status.last_activity_time);
-                return (new Date() - d) / 1000;
+        this.email = function(newEmail) {
+            if (newEmail !== undefined) {
+                email = newEmail;
+                emailDirty = true;
             }
-            else {
-                return null;
+            return email;
+        }
+
+        this.isValidated = function() {
+            return initParams.validated;
+        }
+
+        // TODO: docuement
+        this.remote = function() {
+            return initParams.remote;
+        }
+
+        this.updateToRemote = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self";
+
+            payload = {};
+            if (emailDirty) {
+                payload["email"] = email;
             }
+
+            httpJsonPost(url, payload).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
 
-        this.beginControlTransaction = function() {
+        this.username = function() {
+            return initParams.username;
         }
 
-        /* Lists accounts who have permission to access this */
-        this.permissions = function() {
-        }
+        /* 
+         * Returns CanopyBarrier
+         */
+        this.validate = function(params) {
+            // TODO: Document both REST API and JS Client
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/activate";
 
-        this.share = function(params) {
-        }
+            console.log(params.username);
+            httpJsonPost(url, {
+                username: params.username,
+                code: params.code
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
 
-        this.setPermissions = function(params) {
-        }
-
-        this.IsConnected = function() {
-            return this.ConnectionStatus() == "connected";
-        }
-
-        this.IsDisconnected = function() {
-            return this.ConnectionStatus() == "disconnected";
-        }
-
-        this.IsNeverConnected = function() {
-            return this.ConnectionStatus() == "never_connected";
-        }
-
-        this.ConnectionStatus = function() {
-            if (initObj.status.ws_connected) {
-                return "connected";
-            }
-            return "disconnected";
-        }
-
-        this.IsActive = function() {
-            return (this.LastActivitySecondsAgo() != null && this.LastActivitySecondsAgo() < 60);
-        }
-
-        this.IsInactive = function(seconds) {
-            return (this.LastActivitySecondsAgo() >= 60);
-        }
-
-        this.IsNewlyCreated = function() {
-            return (this.LastActivityTime() == null);
-        }
-
-        this.LastActivityTime = function() {
-            if (initObj['status']) {
-                return initObj['status'].last_activity_time;
-            }
-            return undefined;
+            return barrier;
         }
     }
 
-    /*
-     * <devices> is list of CanopyDevice objects.
-     */
-    function CanopyDeviceList(devices) {
-        this.Append = function(device) {
-            this.length += 1;
-            this[this.length-1] = device;
-            this[device.UUID()] = device;
-        }
-
-        this.Active = function() {
-            return this.Filter({active: true});
-        }
-
-        this.Count = function(options) {
-            return this.Filter(options).length;
-        }
-
-        this.Connected = function() {
-            return this.Filter({connected: true});
-        }
-
-        this.CloudVarNames = function() {
-            var cloudvars = {}
-            var i = 0;
-            for (i = 0; i < this.length; i++) {
-                var vars = this[i].Vars();
-                if (vars == undefined)
-                    continue;
-                var j;
-                varkeys = vars.VarKeys();
-                for (j = 0; j < varkeys.length; j++) {
-                    cloudvars[varkeys[j]] = true;
-                }
-            }
-            var outkeys = [];
-            var v;
-            for (v in cloudvars) {
-                outkeys.push(v);
-            }
-
-            return outkeys;
-        }
-
-        this.Disconnected = function() {
-            return this.Filter({disconnected: true});
-        }
-
-        this.Filter = function(options) {
-            if ($.isEmptyObject(options)) {
-                return devices;
-            }
-            filteredDevices = [];
-            for (i = 0; i < devices.length; i++) {
-                var device = devices[i];
-                if (options['active'] == device.IsActive()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-                if (options['connected'] == device.IsConnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-
-                if (options['disconnected'] == device.IsDisconnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-                if (options['inactive'] == device.IsInactive()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-                if (options['never_connected'] == device.IsNeverConnected()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-                if (options['newly_created'] == device.IsNewlyCreated()) {
-                    filteredDevices.push(devices[i]);
-                    continue;
-                }
-            }
-            return filteredDevices;
-        }
-
-        this.Inactive = function() {
-            return this.Filter({inactive: true});
-        }
-
-        this.NeverConnected = function() {
-            return this.Filter({never_connected: true});
-        }
-
-        this.NewlyCreated = function() {
-            return this.Filter({newly_created: true});
-        }
-
-        /* simulate array */
-        this.length = devices.length;
-        for (var i = 0; i < devices.length; i++) {
-            this[i] = devices[i];
-        }
-
-        /* simulate map */
-        for (var i = 0; i < devices.length; i++) {
-            this[devices[i].UUID()] = devices[i];
-        }
+    this.initContext = function() {
+        return new CanopyContext();
     }
 
-    // Initialization
-    $(function() {
-        fetchAccount({
-            onSuccess : function(acct) {
-                self.priv.me = acct;
-                self.priv.onReady();
-            },
-            onError : function(acct) {
-                self.priv.onReady();
-            }
-        })
-    });
+    this.initDeviceClient = function(settings) {
+        var ctx = selfModule.initContext();
+        var remote = ctx.initRemote(settings);
+        var barrier = remote.getSelfDevice();
+        barrier._data["ctx"] = ctx;
+        barrier._data["remote"] = remote;
+        return barrier;
+    }
+
+    this.initUserClient = function(settings) {
+        var ctx = selfModule.initContext();
+        var remote = ctx.initRemote(settings);
+        var barrier = remote.getSelfUser();
+        barrier._data["ctx"] = ctx;
+        barrier._data["remote"] = remote;
+        return barrier;
+    }
 }
 
-// Example program:
-/*
-var canopy = new CanopyClient();
-
-acct = canopy.Account("me");
-device = acct.Devices();
-
-canopy.TrackDevice(CANOPY_DEVICE_UUID);
-canopy.AutoSync(true);
-
-canopy.onChange(canopy.Device("uuid").);
-
-canopy.Sync({
-    onSuccess: function() {
-        canopy.Device("UUID")
-    }
-});
-*/
-
+Canopy = new CanopyModule();
 
 /*
  * FROM http://blog.toppingdesign.com/2009/08/13/fast-rfc-3339-date-processing-in-javascript/
