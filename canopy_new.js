@@ -813,6 +813,64 @@ function CanopyModule() {
 
             return barrier;
         }
+
+        // Returns CanopyBarrier
+        this.requestPasswordReset = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/reset_password";
+
+            selfRemote._httpJsonPost(url, {
+                "username" : params.username
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.resetPassword = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = selfRemote.baseUrl() + "/api/reset_password";
+
+            if (!params.password || (params.password != params.confirmPassword)) {
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+                return;
+            }
+
+            var payload = {
+                "username" : params.username,
+                "password" : params.password,
+                "code" : params.code
+            };
+            selfRemote._httpJsonPost(url, payload)
+                .done(function(data, textStatus, jqXHR) {
+                    if (data.result != "ok") {
+                        barrier._result = CANOPY_ERROR_UNKNOWN;
+                        barrier._signal();
+                        return;
+                    }
+                    barrier._result = CANOPY_SUCCESS;
+                    barrier._signal();
+                }).fail(function(jqXHR, textStatus, errorThrown) {
+                    /* TODO: determine error */
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                })
+            ;
+
+            return barrier;
+        }
     }
 
     function CanopyUser(initParams) {
