@@ -40,6 +40,7 @@ var CANOPY_ERROR_NOT_FOUND = 18;
 var CANOPY_ERROR_BAD_INPUT = 19;
 var CANOPY_ERROR_USERNAME_NOT_AVAILABLE = 20;
 var CANOPY_ERROR_EMAIL_TAKEN = 21;
+var CANOPY_ERROR_INCORRECT_USERNAME_OR_PASSWORD = 22;
 
 var CANOPY_VAR_OUT = "out";
 var CANOPY_VAR_IN = "in";
@@ -53,6 +54,7 @@ function CanopyModule() {
             "bad_input" : CANOPY_ERROR_BAD_INPUT,
             "username_not_available" : CANOPY_ERROR_USERNAME_NOT_AVAILABLE,
             "email_taken" : CANOPY_ERROR_EMAIL_TAKEN,
+            "incorrect_username_or_password" : CANOPY_ERROR_INCORRECT_USERNAME_OR_PASSWORD,
         }[e];
 
         if (out === undefined) {
@@ -729,8 +731,14 @@ function CanopyModule() {
                 barrier._result = CANOPY_SUCCESS;
                 barrier._signal();
             }).fail(function(jqXHR, textStatus, errorThrown) {
-                /* TODO: determine error */
-                barrier._result = CANOPY_ERROR_UNKNOWN;
+                var json = $.parseJSON(jqXHR.responseText);
+                if (!json) {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = restErrorToResultValue(json.error_type);
+                barrier._data["error_msg"] = json.error_msg;
                 barrier._signal();
             });
 
