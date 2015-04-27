@@ -37,6 +37,9 @@ var CANOPY_ERROR_JSON = 15;
 var CANOPY_ERROR_NETWORK = 16;
 var CANOPY_ERROR_SHUTDOWN = 17;
 var CANOPY_ERROR_NOT_FOUND = 18;
+var CANOPY_ERROR_BAD_INPUT = 19;
+var CANOPY_ERROR_USERNAME_NOT_AVAILABLE = 20;
+var CANOPY_ERROR_EMAIL_TAKEN = 21;
 
 var CANOPY_VAR_OUT = "out";
 var CANOPY_VAR_IN = "in";
@@ -44,6 +47,19 @@ var CANOPY_VAR_INOUT = "inout";
 
 function CanopyModule() {
     var selfModule = this;
+
+    function restErrorToResultValue(e) {
+        var out = {
+            "bad_input" : CANOPY_ERROR_BAD_INPUT,
+            "username_not_available" : CANOPY_ERROR_USERNAME_NOT_AVAILABLE,
+            "email_taken" : CANOPY_ERROR_EMAIL_TAKEN,
+        }[e];
+
+        if (out === undefined) {
+            return CANOPY_ERROR_UNKNOWN;
+        }
+        return out;
+    }
 
     function httpJsonGet(url) {
         // TODO: provide BASIC AUTH if necessary
@@ -605,6 +621,16 @@ function CanopyModule() {
                 barrier._data["user"] = user;
                 barrier._result = CANOPY_SUCCESS;
                 barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                var json = $.parseJSON(jqXHR.responseText);
+                if (!json) {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = restErrorToResultValue(json.error_type);
+                barrier._data["error_msg"] = json.error_msg;
+                barrier._signal();
             });
 
             return barrier;
@@ -998,7 +1024,6 @@ function CanopyModule() {
         // Returns barrier
         this.historicData = function(startTime, endTime) {
             var barrier = new CanopyBarrier();
-            console.log(initDeclParams);
             var url = initDeclParams.remote.baseUrl() + "/api/device/" + this.device().id() + "/" + this.name();
 
             initDeclParams.remote._httpJsonGet(url).done(
