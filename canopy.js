@@ -131,10 +131,17 @@ function CanopyModule() {
         var device_id = initParams.device_id;
         var nameDirty = false;
         var name = initParams.name;
+        var lastActivityTime;
+        var websocketConnected;
         var locationNote = initParams.location_note;
         var locationNoteDirty = false;
         var selfDevice = this;
         var varList = [];
+
+        if (initParams.status !== undefined) {
+            lastActivityTime = (initParams.status.last_activity_time !== undefined ? initParams.status.last_activity_time : null);
+            websocketConnected = (initParams.status.ws_connected !== undefined ? initParams.status.ws_connected : null);
+        }
 
         // Returns list of CanopyVariables, or null on error
         function parseAndMergeVarDecls(varDecls, varValues) {
@@ -196,8 +203,11 @@ function CanopyModule() {
             if (resp["location_note"]) {
                 locationNote = resp["location_note"];
             }
-            if (resp["status"] && resp["status"].last_activity_time) {
+            if (resp["status"] && resp["status"].last_activity_time !== undefined) {
                 lastActivityTime = resp["status"].last_activity_time;
+            }
+            if (resp["status"] && resp["status"].ws_connected !== undefined) {
+                websocketConnected = resp["status"].ws_connected;
             }
             if (resp["var_decls"]) {
                 parseAndMergeVarDecls(resp["var_decls"], resp["vars"]);
@@ -226,8 +236,8 @@ function CanopyModule() {
         }
 
         this.lastActivitySecondsAgo = function() {
-            if (initParams.status.last_activity_time) {
-                var d = new Date().setRFC3339(initParams.status.last_activity_time);
+            if (lastActivityTime) {
+                var d = new Date().setRFC3339(lastActivityTime);
                 return (new Date() - d) / 1000;
             } else {
                 return null;
@@ -235,11 +245,7 @@ function CanopyModule() {
         }
 
         this.lastActivityTime = function() {
-            if (initParams['status']) {
-                return initParams['status'].last_activity_time;
-            }
-            /* TODO: Return NULL */
-            return null;
+            return lastActivityTime;
         }
 
         this.locationNote = function(newLocationNote) {
@@ -384,7 +390,7 @@ function CanopyModule() {
         }
 
         this.websocketConnected = function() {
-            return initParams.status.ws_connected ? true : false;
+            return websocketConnected;
         }
 
         // Initialize
@@ -394,12 +400,18 @@ function CanopyModule() {
     function CanopyDeviceQuery(initParams) {
         var selfDQ = this;
 
+        var filters = (initParams.filters !== undefined) ? initParams.filters : [];
+
         /*
          * Returns CanopyBarrier
          */ 
         this.count = function() {
             var barrier = new CanopyBarrier();
-            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=0,0"
+            var filter = "";
+            if (filters[0] !== undefined) {
+                filter = "filter=" + encodeURIComponent(filters[0]) + "&";
+            }
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?" + filter + "limit=0,0"
 
             initParams.remote._httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
@@ -426,15 +438,15 @@ function CanopyModule() {
          */
         this.filter = function(expr) {
             var newFilters = [];
-            for (var i = 0; i < initParams.filters.length; i++) {
-                newFilters.push(initParams.filters[i]);
+            for (var i = 0; i < filters.length; i++) {
+                newFilters.push(filters[i]);
             }
             newFilters.push(expr);
 
-            /*return new CanopyDeviceQuery(
+            return new CanopyDeviceQuery({
                 remote: initParams.remote,
-                filter: newFilters
-            );*/
+                filters: newFilters
+            });
         }
 
         /*
@@ -510,7 +522,11 @@ function CanopyModule() {
          */ 
         this.getMany = function(start, count) {
             var barrier = new CanopyBarrier();
-            var url = initParams.remote.baseUrl() + "/api/user/self/devices?limit=" + start + "," + count + "&timestamps=rfc3339";
+            var filter = "";
+            if (filters[0] !== undefined) {
+                filter = "filter=" + encodeURIComponent(filters[0]) + "&";
+            }
+            var url = initParams.remote.baseUrl() + "/api/user/self/devices?" + filter + "limit=" + start + "," + count + "&timestamps=rfc3339";
 
             initParams.remote._httpJsonGet(url).done(
                 function(data, textStatus, jqXHR) {
