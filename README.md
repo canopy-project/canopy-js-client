@@ -1,4 +1,6 @@
 canopy-js-client
 ================
 
-Javascript client for Canopy application developement
+Javascript client library for Canopy.
+
+Documentation: http://canopy.link/devel/devzone/js_client/
