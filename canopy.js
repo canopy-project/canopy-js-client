@@ -604,12 +604,12 @@ function CanopyModule() {
 
         this.apiBaseUrl = function() {
             // TODO: fixme
-            return "https://" + initParams.host + "/api";
+            return "//" + initParams.host + "/api";
         }
         
         this.baseUrl = function() {
             // TODO: fixme
-            return "https://" + initParams.host;
+            return "//" + initParams.host;
         }
 
         /* Returns CanopyBarrier */
