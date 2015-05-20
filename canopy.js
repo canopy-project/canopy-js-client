@@ -561,6 +561,12 @@ function CanopyModule() {
         }
     }
 
+    function CanopyOrganization(initParams) {
+        this.name = function() {
+            return initParams.name;
+        }
+    }
+
     function CanopyRemote(initParams) {
         var selfRemote = this;
 
@@ -945,6 +951,35 @@ function CanopyModule() {
 
         this.isValidated = function() {
             return initParams.validated;
+        }
+
+        // Returns barrier
+        this.organizations = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self/orgs";
+
+            httpJsonGet(url).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._data["orgs"] = [];
+                for (var i = 0; i < data.orgs.length; i++) {
+                    var org = new CanopyOrganization({
+                        name: data.orgs[i],
+                    });
+                    barrier._data["orgs"].push(org);
+                }
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
 
         // TODO: docuement
