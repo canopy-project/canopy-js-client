@@ -561,6 +561,7 @@ function CanopyModule() {
         }
     }
 
+    // TODO: Document
     function CanopyOrganization(initParams) {
         this.name = function() {
             return initParams.name;
@@ -930,6 +931,40 @@ function CanopyModule() {
             return barrier;
         }
 
+        // Returns barrier
+        // TODO: Document
+        this.createOrganization = function(params) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/create_org";
+
+            httpJsonPost(url, {
+                name: params.name,
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._data["org"] = new CanopyOrganization({
+                    name: data.name
+                });
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                var json = $.parseJSON(jqXHR.responseText);
+                if (!json) {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = restErrorToResultValue(json.error_type);
+                barrier._data["error_msg"] = json.error_msg;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
         /* 
          * Returns DeviceQuery
          */
@@ -954,6 +989,7 @@ function CanopyModule() {
         }
 
         // Returns barrier
+        // TODO: Document
         this.organizations = function() {
             var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/user/self/orgs";
