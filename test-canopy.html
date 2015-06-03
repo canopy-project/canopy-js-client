@@ -1,0 +1,69 @@
+<html>
+<head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="canopy.js"></script>
+</head>
+<body>
+<div id=main>
+    <h2>Unit tests for canopy.js</h2>
+</div>
+<script>
+
+function verify(cond, testname) {
+    if (cond) {
+        $("#main").append(testname + " <span style='color:#008000'>passed</span><br>");
+    } else {
+        $("#main").append(testname + " <span style='color:#c00000'>FAILED</span><br>");
+    }
+}
+
+
+var gCtx;
+var gRemote;
+
+{
+    // Test context creation
+    var gCtx = Canopy.initContext();
+    verify(gCtx, "ctx created");
+}
+
+{
+    // Test jquery AJAX
+    $.ajax({
+        type: "GET",
+        dataType : "json",
+        url: "https://dev02.canopy.link/api/info",
+        xhrFields: {
+             withCredentials: true
+        },
+        crossDomain: true
+    }).done(function(data, textStatus, jqXHR) {
+        verify((textStatus == "success"),"CORS ajax working");
+        verify((data['service-name'] == "Canopy Cloud Service"),"service name is 'Canopy Cloud Service'");
+    });
+}
+
+{
+    // Test logout (unknown current state)
+    gRemote = gCtx.initRemote({
+        // TODO: specify remote settings somehow
+        host: "dev02.canopy.link"
+    });
+    verify(gRemote, "remote created");
+
+    gRemote.logout().onDone(function(result, responseData) {
+        verify((result == CANOPY_SUCCESS), "logout (from unknown state)");
+
+        // Confirm logout using initUserClient
+        Canopy.initUserClient({
+            // TODO: specify remote settings somehow
+            host: "dev02.canopy.link"
+        }).onDone(function(result, responseData) {
+            verify((result != CANOPY_SUCCESS), "no user client after logout");
+        });
+    });
+}
+
+</script>
+</body>
+</html>
