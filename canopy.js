@@ -1106,6 +1106,11 @@ function CanopyModule() {
     }
 
     this.initContext = function() {
+        /*
+         * Needed for IE8 CORS to work
+         */
+        $.support.cors = true;
+
         return new CanopyContext();
     }
 
