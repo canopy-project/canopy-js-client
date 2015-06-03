@@ -46,6 +46,15 @@ var CANOPY_VAR_OUT = "out";
 var CANOPY_VAR_IN = "in";
 var CANOPY_VAR_INOUT = "inout";
 
+/*
+ * Console fallback for IE8/9
+ */
+if (typeof console === undefined) {
+    console = {
+        log: function() {}
+    };
+}
+
 function CanopyModule() {
     var selfModule = this;
 
