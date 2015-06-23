@@ -563,6 +563,14 @@ function CanopyModule() {
 
     // TODO: Document
     function CanopyOrganization(initParams) {
+        this.isOrganization = function() {
+            return true;
+        }
+
+        this.isUser = function() {
+            return false;
+        }
+
         this.name = function() {
             return initParams.name;
         }
@@ -984,8 +992,60 @@ function CanopyModule() {
             return email;
         }
 
+        // TODO: document
+        this.isOrganization = function() {
+            return true;
+        }
+
+        // TODO: document
+        this.isUser = function() {
+            return false;
+        }
+
         this.isValidated = function() {
             return initParams.validated;
+        }
+
+        // For consistency with org.name() (so that either can be used as a
+        // "viewer")
+        // TODO: Document
+        this.name = function() {
+            return this.username();
+        }
+
+        // Returns barrier
+        // TODO: Document
+        this.organization = function(name) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/user/self/orgs";
+
+            httpJsonGet(url).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._data["org"] = null;
+                for (var i = 0; i < data.orgs.length; i++) {
+                    if (data.orgs[i] == name) {
+                        var org = new CanopyOrganization({
+                            name: data.orgs[i],
+                        });
+                        barrier._data["org"] = org
+                    }
+                }
+                if (barrier._data["org"] == null) {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                }
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
 
         // Returns barrier
