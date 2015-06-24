@@ -563,6 +563,8 @@ function CanopyModule() {
 
     // TODO: Document
     function CanopyOrganization(initParams) {
+        var selfOrg = this;
+
         this.isOrganization = function() {
             return true;
         }
@@ -571,8 +573,83 @@ function CanopyModule() {
             return false;
         }
 
+        // Returns barrier
+        this.addMember = function(usernameOrEmail) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/members";
+
+            initParams.remote._httpJsonPost(url, {
+                "add_member" : {
+                    "user" : usernameOrEmail
+                }
+            }
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns barrier
+        this.members = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/members";
+
+            initParams.remote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._data["members"] = data.members;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
         this.name = function() {
             return initParams.name;
+        }
+
+        // Returns barrier
+        this.removeMember = function(usernameOrEmail) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/members";
+
+            initParams.remote._httpJsonPost(url, {
+                "remove_member" : usernameOrEmail
+            }).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
         }
     }
 
@@ -955,7 +1032,8 @@ function CanopyModule() {
                 }
                 barrier._result = CANOPY_SUCCESS;
                 barrier._data["org"] = new CanopyOrganization({
-                    name: data.name
+                    name: data.name,
+                    remote: initParams.remote
                 });
                 barrier._signal();
             }).fail(function(jqXHR, textStatus, errorThrown) {
@@ -1031,6 +1109,7 @@ function CanopyModule() {
                     if (data.orgs[i] == name) {
                         var org = new CanopyOrganization({
                             name: data.orgs[i],
+                            remote: initParams.remote
                         });
                         barrier._data["org"] = org
                     }
