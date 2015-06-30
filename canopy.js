@@ -601,6 +601,32 @@ function CanopyModule() {
         }
 
         // Returns barrier
+        this.createTeam = function(name, urlAlias) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/create_team";
+
+            initParams.remote._httpJsonPost(url, {
+                "name" : name,
+                "url_alias" : urlAlias
+            }
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        // Returns barrier
         this.members = function() {
             var barrier = new CanopyBarrier();
             var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/members";
@@ -650,6 +676,126 @@ function CanopyModule() {
             });
 
             return barrier;
+        }
+
+        // Return barrier
+        this.teams = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + selfOrg.name() + "/teams";
+
+            initParams.remote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._data["teams"] = [];
+                for (var i = 0; i < data.teams.length; i++) {
+                    console.log(data.teams[i]);
+                    var team = new CanopyTeam({
+                        name: data.teams[i].name,
+                        org: selfOrg,
+                        remote: initParams.remote,
+                        urlAlias: data.teams[i].url_alias,
+                    });
+                    barrier._data["teams"].push(team);
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+    }
+
+    // TODO: Document
+    function CanopyTeam(initParams) {
+        var selfTeam = this;
+
+        this.addMember = function(usernameOrEmail) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + initParams.org.name() + "/team/" + selfTeam.urlAlias() + "/members";
+
+            initParams.remote._httpJsonPost(url, {
+                "add_member" : {
+                    "user" : usernameOrEmail
+                }
+            }
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.name = function() {
+            return initParams.name;
+        }
+
+        this.members = function() {
+            var barrier = new CanopyBarrier();
+            var url = initParams.remote.baseUrl() + "/api/org/" + initParams.org.name() + "/team/" + selfTeam.urlAlias() + "/members";
+
+            initParams.remote._httpJsonGet(url
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._data["members"] = data.members;
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.removeMember = function(usernameOrEmail) {
+            var barrier = new CanopyBarrier();
+            var url = initParams.org.remote.baseUrl() + "/api/org/" + initParams.org.name() + "/team/" + selfTeam.urlAlias() + "/members";
+
+            initParams.remote._httpJsonPost(url, {
+                "remove_member" : usernameOrEmail
+            }
+            ).done(function(data, textStatus, jqXHR) {
+                if (data.result != "ok") {
+                    barrier._result = CANOPY_ERROR_UNKNOWN;
+                    barrier._signal();
+                    return;
+                }
+                barrier._result = CANOPY_SUCCESS;
+                barrier._signal();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                /* TODO: determine error */
+                barrier._result = CANOPY_ERROR_UNKNOWN;
+                barrier._signal();
+            });
+
+            return barrier;
+        }
+
+        this.urlAlias = function() {
+            return initParams.urlAlias;
         }
     }
 
@@ -1144,6 +1290,7 @@ function CanopyModule() {
                 for (var i = 0; i < data.orgs.length; i++) {
                     var org = new CanopyOrganization({
                         name: data.orgs[i],
+                        remote: initParams.remote
                     });
                     barrier._data["orgs"].push(org);
                 }
