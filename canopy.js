@@ -772,7 +772,7 @@ function CanopyModule() {
 
         this.removeMember = function(usernameOrEmail) {
             var barrier = new CanopyBarrier();
-            var url = initParams.org.remote.baseUrl() + "/api/org/" + initParams.org.name() + "/team/" + selfTeam.urlAlias() + "/members";
+            var url = initParams.remote.baseUrl() + "/api/org/" + initParams.org.name() + "/team/" + selfTeam.urlAlias() + "/members";
 
             initParams.remote._httpJsonPost(url, {
                 "remove_member" : usernameOrEmail
